@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<script src='https://wzrd.in/standalone/parse-gedcom@latest'></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js"></script> 
+<style>
+  html, body {
+    font: 300 12px/1.3 arial;
+    height: 100%;
+    margin: 0;
+  }
+
+  .infos {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .loaded .infos,
+  .controls,
+  main {
+    display: none;
+  }
+  .loaded main {
+    display: block;
+  }
+  .loaded .controls {
+    display: flex;
+  }
+  @media print { 
+    .controls {
+      display: none;
+    }
+  }
+
+  label{
+    padding: 0 .5em;
+    font-size: .8em;
+    display: flex;
+    flex-flow: column;
+  }
+  input[type=number] {
+    width: 100%;
+  }
+  #title {
+    text-align: center;
+  }
+  #chart {
+    display: block;
+    margin: auto;
+  }
+
+
+
+  #bg {
+    fill: #999;
+  }
+
+  #fan > path {
+    stroke: #f5f5f5;
+  }
+  .SEX_f path {
+    stroke: #eee;
+  }
+  .SEX_m path {
+    stroke: #ccc;
+  }
+
+</style>
+<script type="text/javascript">//<![CDATA[
+window.onload=function(){
+
+var generations = 8,
+    tree;
+
+// file drop
+
+window.addEventListener('dragover',function(e){
+  e = e || event;
+  e.preventDefault();
+},false);
+window.addEventListener('drop', function(e) {
+  e = e || event;
+  e.stopPropagation();
+  e.preventDefault();
+  var f = e.dataTransfer.files[0],
+      reader = new FileReader();
+
+  reader.onload = function(e) {
+    tree = parseGedcom.parse(e.target.result);
+    init();
+  };
+  reader.readAsText(f);
+}, false);
+
+document.getElementById('generations')
+        .addEventListener('change', init);
+document.getElementById('originID')
+        .addEventListener('change', init);
+var textfields = document.querySelectorAll('.textTemplate');
+[].forEach.call(textfields, function(el) {
+  el.addEventListener('keydown', function (e) {
+     if (e.which == 13 || e.keyCode == 13)
+      init();
+  });
+});
+
+// helpers
+
+String.prototype.trunc =
+  function( n, useWordBoundary ){
+    var isTooLong = this.length > n,
+        s_ = isTooLong ? this.substr(0,n-1) : this;
+    s_ = (useWordBoundary && isTooLong) ? s_.substr(0,s_.lastIndexOf(' ')) : s_;
+    return  isTooLong ? s_ + '...' : s_;
+  };
+
+// init
+
+function init(){
+
+  generations = document.getElementById('generations').value;
+
+  var originID = document.getElementById('originID').value,
+      origin = getOrigin(originID),
+      ancestors = getAncestors(origin);
+
+  //console.log(ancestors);
+
+  setTitle(origin);
+  drawChart(ancestors);
+
+  document.body.classList.add('loaded');
+}
+
+function setTitle (origin) {
+  var title = document.getElementById('title'),
+      originName = parseName(origin.tree[0].data)
+  title.innerHTML = originName.surnames.join(' ')+' '+originName.lastname;
+}
+
+function getOrigin (id) {
+  return tree.filter(function (el) {
+    return el.tag == 'INDI';
+  })[id];
+}
+
+function getAncestors (origin) {
+  var individuals = [origin];
+  for (var gen = 0; gen <= generations; gen++)
+  {
+    var start = Math.floor(Math.pow(2, gen-1)),
+        end = Math.pow(2, gen);
+
+    for (var i = start; i < end; i++)
+    {
+      var parents = getParents(individuals[i]);
+      if(parents.length == 0) {
+        individuals.push({});
+        individuals.push({});
+      } else {
+        individuals.push(parents[0]);
+        individuals.push(parents[1]);
+      }
+    }
+  }
+  return individuals;
+}
+function getParents (indiv)
+{
+  if(indiv == undefined || indiv.tree == undefined) return [];
+
+  // find family where indiv is child
+
+  var indivFamilyID = indiv.tree.find(function (el) {
+     return el.tag == 'FAMC';
+  });
+  if(indivFamilyID == undefined) return [];
+
+  var indivFamily = tree.find(function (el) {
+     return el.pointer == indivFamilyID.data;
+  });
+  if(indivFamily == undefined) return [];
+
+  // get parents IDs of that family
+
+  var parents = [];
+  var parentA = indivFamily.tree.find(function (el) {
+     return el.tag == 'HUSB';
+  });
+  var parentB = indivFamily.tree.find(function (el) {
+     return el.tag == 'WIFE';
+  });
+
+  // get parents
+
+  if(parentA !== undefined) {
+    parents.push(tree.find(function (el) {
+      return el.pointer == parentA.data;
+    }));
+  }
+  if(parentB !== undefined) {
+    parents.push(tree.find(function (el) {
+      return el.pointer == parentB.data;
+    }));
+  }
+
+  return parents.map(parseIndividual);
+}
+
+function parseIndividual (indiv) {
+  indiv.classes = [];
+  // generic tags
+  var tag,
+      exclude = ['FAMC', 'FAMS', 'BIRT', 'DEAT', 'EVEN', 'SOUR', 'CHAN'];
+  for (var i = 0; i < indiv.tree.length; i++) {
+    tag = indiv.tree[i].tag;
+    if (exclude.indexOf(tag) != -1)
+      continue;
+    indiv[tag] = indiv.tree[i].data;
+    indiv.classes.push(tag+cssnamify(indiv.tree[i].data));
+  }
+  // name
+  var names = parseName(indiv.tree[0].data);
+  indiv.LAST = names.lastname;
+  indiv.SURS = names.surnames;
+  indiv.classes.push('LAST'+cssnamify(names.lastname));
+  for (var i = 0; i < names.surnames.length; i++) {
+    indiv.classes.push('SURS'+cssnamify(names.surnames[i]));
+  }
+  // birth / death
+  var birth = getEventInfos(indiv, 'BIRT');
+  indiv.BDATE = birth.date;
+  if(!indiv.BDATE || isNaN(indiv.BDATE)) indiv.BYEAR = '';
+  else indiv.BYEAR = birth.date.getFullYear();
+
+  indiv.BPLAC = birth.plac;
+  if(indiv.BPLAC)
+    indiv.BPLAC.split(',').forEach(function (el) {
+      indiv.classes.push('PLAC'+cssnamify(el));
+    });
+
+  var death = getEventInfos(indiv, 'DEAT');
+  indiv.DDATE = death.date;
+  if(!indiv.DDATE || isNaN(indiv.DDATE)) indiv.DYEAR = '';
+  else indiv.DYEAR = death.date.getFullYear();
+  
+  indiv.DPLAC = death.plac;
+  if(indiv.DPLAC)
+    indiv.DPLAC.split(',').forEach(function (el) {
+      indiv.classes.push('PLAC'+cssnamify(el));
+    });
+
+  return indiv; 
+}
+function getData (node, tag) {
+  if(node.tree == undefined) return '';
+  var result = node.tree.find(function (el) {
+     return el.tag == tag; 
+  });
+  if(result == undefined) return '';
+  return result.data;
+}
+function getEventInfos (indiv, tag) {
+  var out = {date:null, plac:null};
+  if(indiv.tree == undefined) return out;
+
+  var event = indiv.tree.find(function (el) {
+     return el.tag == tag; 
+  });
+  if(event == undefined) return out;
+
+  out.date = new Date(getData(event, 'DATE')),
+  out.plac = getData(event, 'PLAC');
+
+  return out;
+}
+function parseName (name) {
+  var nameregex = /\/(.*?)\//;
+  var lastname = name.match(nameregex)[1];
+  name = name.replace(nameregex, '');
+  var surnames = name.trim().split(/[- ]+/);
+  return {lastname: lastname || '', surnames: surnames};
+}
+function cssnamify(str) {
+  str = str.trim().toLowerCase();
+  str = str.normalize('NFD').replace(/[\u0300-\u036f]/g,""); // diactritics
+  return '_' + str.replace(/[^a-z0-9]/g, function(s) {
+    var c = s.charCodeAt(0);
+    if (c == 32) return '-';
+    return '';
+  });
+}
+
+function parseTextTemplate (str, indiv) {
+  var keyreg = /([A-Z]{3,})/g;
+  str = str.split(keyreg).map(function(key){
+    if(!key.match(keyreg))
+      return key;
+    if(!indiv.hasOwnProperty(key))
+      return '';
+    if(Array.isArray(indiv[key]))
+      return ' '+indiv[key].join(' ').trunc(15, true);
+    return ' '+indiv[key];
+  });
+  return str;
+}
+
+function drawChart (individuals) {
+
+  var text1Template = document.getElementById('text1Template').value;
+  var text2Template = document.getElementById('text2Template').value;
+  var text3Template = document.getElementById('text3Template').value;
+
+  var baseThickness = 35,
+      border = 1;
+
+  var radius = 0;
+  var path, arc, text1, text2, text3;
+
+  var s = Snap('#chart');
+  var g = s.select('#fan');
+  if(g !== null)
+    g.remove();
+  g = s.g().attr({id: 'fan'});
+
+  var id = 0;
+  for(var gen=1; gen<=generations; gen++)
+  {
+    var isHorizontal = gen < 4;
+    var thickness = isHorizontal ? baseThickness : baseThickness*2.5;
+    var arcsNbr = Math.pow(2, gen);
+    var arcAngle = 2*Math.PI / arcsNbr;
+
+    radius += thickness + border;
+    if(gen == 4) radius -= baseThickness*.75; // ?
+
+    for(var j=0; j<arcsNbr; j++)
+    {
+
+      var startAngle = arcAngle * j;
+      var arcStart = {
+        x : Math.cos(startAngle) * radius,
+        y : Math.sin(startAngle) * radius,
+      };
+      var arcEnd = {
+        x : Math.cos(startAngle+arcAngle) * radius,
+        y : Math.sin(startAngle+arcAngle) * radius,
+      };
+
+      var lineStart = {
+        x : Math.cos(startAngle+arcAngle*.5) * (radius - thickness),
+        y : Math.sin(startAngle+arcAngle*.5) * (radius - thickness)
+      };
+      var lineEnd = {
+        x : Math.cos(startAngle+arcAngle*.5) * (radius + thickness),
+        y : Math.sin(startAngle+arcAngle*.5) * (radius + thickness)
+      };
+
+      var isBottomHalf = startAngle >= Math.PI;
+      var isLeftHalf = startAngle >= Math.PI/2 && startAngle < Math.PI * 1.5;
+      var reverse = (isHorizontal && isBottomHalf) || (!isHorizontal && isLeftHalf);
+
+      if(isBottomHalf) {
+        arcStart.y -= border;
+        arcEnd.y -= border;
+        lineStart.y += border;
+        lineEnd.y += border;
+      }
+      if(isLeftHalf && gen > 1) {
+        arcStart.x -= border;
+        arcEnd.x -= border;
+        lineStart.x -= border;
+        lineEnd.x -= border;
+      }
+      if(gen == 1) {
+        arcStart.x -= border/2;
+        arcEnd.x -= border/2;
+        lineStart.x -= border/2;
+        lineEnd.x -= border/2;
+      }
+
+      path = "M"+arcEnd.x+","+arcEnd.y;
+      path+= " A"+radius+","+radius+" 0 0,0 "+arcStart.x+","+arcStart.y;
+
+      line = "M"+lineStart.x+","+lineStart.y+" "+lineEnd.x+","+lineEnd.y;
+      
+      // reverse paths when needed, to flip texts
+      if(reverse) {
+        path = "M"+arcStart.x+","+arcStart.y;
+        path+= " A"+radius+","+radius+" 0 0,1 "+arcEnd.x+","+arcEnd.y;
+
+        line = "M"+lineEnd.x+","+lineEnd.y+" "+lineStart.x+","+lineStart.y;
+      }
+
+      // arc
+      arc = g.path(path);
+      arc.attr({
+        fill: 'none',
+        strokeWidth: thickness
+      });
+
+      id++;
+      if(individuals[id] == undefined || individuals[id].tree == undefined)
+        continue;
+
+      // texts
+      var attrs = {
+        textpath: isHorizontal ? path : line,
+        fontSize: 7,
+        textAnchor: 'middle'
+      };
+      text1 = g.text(0,0, parseTextTemplate(text1Template, individuals[id]) );
+      text1.attr(attrs);
+      text1.textPath.attr({startOffset: '50%'});
+
+      var group;
+      if (gen >= 8) {
+        text1.attr({dy: 1});
+        group = g.group(arc, text1);
+      }
+      else {
+        text2 = g.text(0,0, parseTextTemplate(text2Template, individuals[id]));
+        text2.attr(attrs);
+        text2.textPath.attr({startOffset: '50%'});
+
+        text1.attr({dy: -3});
+        text2.attr({dy: 7});
+      
+        if (gen<6) {
+          text3 = g.text(0,0, parseTextTemplate(text3Template, individuals[id]));
+          text3.attr(attrs);
+          text3.textPath.attr({startOffset: '50%'});
+
+          text1.attr({dy: -8});
+          text2.attr({dy: 3});
+          text3.attr({dy: 14});
+
+          group = g.group(arc, text1, text2, text3);
+        }
+        else group = g.group(arc, text1, text2);
+      }
+      
+      // group classes
+      for (var k = 0; k < individuals[id].classes.length; k++) {
+        group.addClass(individuals[id].classes[k]);
+      }
+    }
+  }
+  // bg
+  g.prepend(s.circle(0,0,radius+thickness*.5).attr({
+    id: 'bg'
+  }));
+  // size and center
+  radius += thickness;
+  s.attr({width: radius*2, height: radius*2});
+  g.transform('t'+radius+','+radius);
+}
+
+}//]]> 
+
+</script>
+<body>
+<div class="infos">Drop a GEDCOM file</div>
+<aside class="controls">
+  <label>generations<input type="number" id="generations" min="1" max="10" value="6"></label>
+  <label>origin ID<input type="number" id="originID" min="0" max="9999" value="0"></label>
+  <label>first line<input type="text" class="textTemplate" id="text1Template" value="SURS LAST"></label>
+  <label>second line<input type="text" class="textTemplate" id="text2Template" value="BYEAR - DYEAR"></label>
+  <label>third line<input type="text" class="textTemplate" id="text3Template" value="OCCU"></label>
+</aside>
+<main>
+  <h3 id="title"></h3>
+  <svg id="chart"></svg>
+</main>
