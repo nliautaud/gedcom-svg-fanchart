@@ -1,8 +1,12 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
 <script src='https://wzrd.in/standalone/parse-gedcom@latest'></script>
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js"></script> 
+<script src='https://cdn.rawgit.com/jackmoore/autosize/master/dist/autosize.min.js'></script> 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js"></script> 
 <style>
+  * {
+    box-sizing: border-box; 
+  }
   html, body {
     font: 300 12px/1.3 arial;
     height: 100%;
@@ -16,32 +20,57 @@
     align-items: center;
   }
 
+  aside {
+    position: absolute;
+    display: flex;
+    flex-flow: column;
+    width: 12em;
+    height: 100%;
+    background-color: #fff;
+    border-right: 1px solid #ddd;
+    padding: 1em;
+  }
+  aside input,
+  aside textarea {
+    width: 100%;
+    border: 1px solid #ddd;
+    padding: .25em;
+  }
+  aside label{
+    padding: .5em 0;
+    font-size: .8em;
+  }
+  aside textarea {
+    resize: none;
+    overflow: hidden;
+  }
+
+  main {
+    height: 100%;
+    overflow: auto;
+    margin-left: 12em;
+  }
+
   .loaded .infos,
-  .controls,
+  aside,
   main {
     display: none;
   }
   .loaded main {
     display: block;
   }
-  .loaded .controls {
+  .loaded aside {
     display: flex;
   }
   @media print { 
-    .controls {
+    .loaded aside {
       display: none;
+    }
+    .loaded main {
+      margin-left: 0;
     }
   }
 
-  label{
-    padding: 0 .5em;
-    font-size: .8em;
-    display: flex;
-    flex-flow: column;
-  }
-  input[type=number] {
-    width: 100%;
-  }
   #title {
     text-align: center;
   }
@@ -51,19 +80,14 @@
   }
 
 
-
-  #bg {
-    fill: #999;
-  }
-
-  #fan > path {
-    stroke: #f5f5f5;
+  .empty-slice path {
+    fill: #f5f5f5;
   }
   .SEX_f path {
-    stroke: #eee;
+    fill: #eee;
   }
   .SEX_m path {
-    stroke: #ccc;
+    fill: #ccc;
   }
 
 </style>
@@ -71,7 +95,8 @@
 window.onload=function(){
 
 var generations = 8,
-    tree;
+    tree,
+    textTemplates = [];
 
 // file drop
 
@@ -93,17 +118,12 @@ window.addEventListener('drop', function(e) {
   reader.readAsText(f);
 }, false);
 
-document.getElementById('generations')
-        .addEventListener('change', init);
-document.getElementById('originID')
-        .addEventListener('change', init);
-var textfields = document.querySelectorAll('.textTemplate');
-[].forEach.call(textfields, function(el) {
-  el.addEventListener('keydown', function (e) {
-     if (e.which == 13 || e.keyCode == 13)
-      init();
-  });
+// reload chart on settings changes
+var fields = document.querySelectorAll('input, textarea');
+[].forEach.call(fields, function(el) {
+  el.addEventListener('change', init);
 });
+autosize(fields);
 
 // helpers
 
@@ -115,14 +135,20 @@ String.prototype.trunc =
     return  isTooLong ? s_ + '...' : s_;
   };
 
+Math.radians = function(degrees) {
+  return degrees * Math.PI / 180;
+};
+
 // init
 
 function init(){
 
   generations = document.getElementById('generations').value;
 
+  registerTextTemplates();
+
   var originID = document.getElementById('originID').value,
-      origin = getOrigin(originID),
+      origin = parseIndividual(getOrigin(originID)),
       ancestors = getAncestors(origin);
 
   //console.log(ancestors);
@@ -131,12 +157,19 @@ function init(){
   drawChart(ancestors);
 
   document.body.classList.add('loaded');
+  autosize.update(fields);
+}
+
+function registerTextTemplates () {
+  var template = document.getElementById('textTemplate').value;
+  textTemplates = template.split('\n').filter(function (el, i) {
+    return el.trim().length > 0;
+  });
 }
 
 function setTitle (origin) {
-  var title = document.getElementById('title'),
-      originName = parseName(origin.tree[0].data)
-  title.innerHTML = originName.surnames.join(' ')+' '+originName.lastname;
+  var titleTemplate = document.getElementById('titleTemplate').value;
+  document.getElementById('title').innerHTML = parseTextTemplate(titleTemplate, origin).join(' ');
 }
 
 function getOrigin (id) {
@@ -210,6 +243,7 @@ function getParents (indiv)
 
 function parseIndividual (indiv) {
   indiv.classes = [];
+  indiv.GENS = generations;
   // generic tags
   var tag,
       exclude = ['FAMC', 'FAMS', 'BIRT', 'DEAT', 'EVEN', 'SOUR', 'CHAN'];
@@ -220,14 +254,16 @@ function parseIndividual (indiv) {
     indiv[tag] = indiv.tree[i].data;
     indiv.classes.push(tag+cssnamify(indiv.tree[i].data));
   }
+
   // name
   var names = parseName(indiv.tree[0].data);
   indiv.LAST = names.lastname;
-  indiv.SURS = names.surnames;
   indiv.classes.push('LAST'+cssnamify(names.lastname));
   for (var i = 0; i < names.surnames.length; i++) {
     indiv.classes.push('SURS'+cssnamify(names.surnames[i]));
   }
+  indiv.SURS = names.surnames.join(' ');
+
   // birth / death
   var birth = getEventInfos(indiv, 'BIRT');
   indiv.BDATE = birth.date;
@@ -250,6 +286,12 @@ function parseIndividual (indiv) {
     indiv.DPLAC.split(',').forEach(function (el) {
       indiv.classes.push('PLAC'+cssnamify(el));
     });
+
+  // texts contents
+  indiv.texts = [];
+  for (var i = 0; i < textTemplates.length; i++) {
+    indiv.texts.push(parseTextTemplate(textTemplates[i], indiv));
+  }
 
   return indiv; 
 }
@@ -292,169 +334,159 @@ function cssnamify(str) {
   });
 }
 
-function parseTextTemplate (str, indiv) {
-  var keyreg = /([A-Z]{3,})/g;
-  str = str.split(keyreg).map(function(key){
+function parseTextTemplate (str, indiv)
+{
+  var keyreg = /([A-Z]{3,}(?:\.\.\.\d+)?)/g;
+  str = str.split(keyreg).map( function(key) {
     if(!key.match(keyreg))
       return key;
+
+    var param = key.split('...');
+    key = param[0];
+    param = Number(param[1]);
+
     if(!indiv.hasOwnProperty(key))
       return '';
+
     if(Array.isArray(indiv[key]))
-      return ' '+indiv[key].join(' ').trunc(15, true);
-    return ' '+indiv[key];
+      text = indiv[key].join(' ');
+    else text = indiv[key];
+
+    return ' ' + (param ? text.trunc(param, true) : text);
   });
   return str;
 }
 
-function drawChart (individuals) {
+function maxTextsLength (indivs, start, end) {
+  var max = 0, curr;
+  for (var i=start; i<end; i++) {
+    if(indivs[i] == undefined || indivs[i].texts == undefined)
+      continue;
+    indivs[i].texts.forEach( function(el, i) {
+      curr = el.join(' ').length *3;
+      if (curr > max) {
+        max = curr;
+      }
+    });
+  }
+  return max;
+}
 
-  var text1Template = document.getElementById('text1Template').value;
-  var text2Template = document.getElementById('text2Template').value;
-  var text3Template = document.getElementById('text3Template').value;
+function slicePathCoordinates (start, angle, r, t, reverse) {
+  var arc1 = arcCoordinates(start, angle, r, reverse),
+      arc2 = arcCoordinates(start+angle, -angle, r + t, reverse);
+  return reverse ? { arc1:arc2, arc2:arc1 } : {arc1:arc1, arc2:arc2};
+}
+function arcCoordinates (start, angle, r, reverse) {
+  if(reverse) {
+    start = start+angle;
+    angle *= -1;
+  }
+  return {
+    r : r,
+    a : {
+      x : Math.cos(start) * r,
+      y : Math.sin(start) * r
+    },
+    b : {
+      x : Math.cos(start+angle) * r,
+      y : Math.sin(start+angle) * r
+    }
+  };
+}
+function arcPath (start, angle, r, reverse) {
+  var c = arcCoordinates(start, angle, r, reverse),
+      arcdir = reverse ? '0,0' : '0,1';
+  return " M"+c.a.x+","+c.a.y + " A"+r+","+r+" 0 "+arcdir+" "+c.b.x+","+c.b.y;
+}
+
+function drawChart (individuals) {
 
   var baseThickness = 35,
       border = 1;
 
-  var radius = 0;
-  var path, arc, text1, text2, text3;
+  var radius = baseThickness,
+      thickness,
+      path, vline,
+      text, textAttrs, textY;
 
-  var s = Snap('#chart');
-  var g = s.select('#fan');
-  if(g !== null)
-    g.remove();
-  g = s.g().attr({id: 'fan'});
+
+  var rotation = Math.radians(Number(document.getElementById('rotation').value));
+
+  var snap = Snap('#chart'),
+      fan = snap.select('#fan');
+
+  if(fan !== null)
+    fan.remove();
+  fan = snap.g().attr({id: 'fan'});
 
   var id = 0;
   for(var gen=1; gen<=generations; gen++)
   {
     var isHorizontal = gen < 4;
-    var thickness = isHorizontal ? baseThickness : baseThickness*2.5;
     var arcsNbr = Math.pow(2, gen);
     var arcAngle = 2*Math.PI / arcsNbr;
 
-    radius += thickness + border;
-    if(gen == 4) radius -= baseThickness*.75; // ?
+    thickness = isHorizontal ? baseThickness : maxTextsLength(individuals, id, id+arcsNbr);
 
     for(var j=0; j<arcsNbr; j++)
     {
+      var startAngle = arcAngle * j + rotation;
+      var middleAngle = startAngle + arcAngle * .5;
+      var isTopHalf = middleAngle >= Math.PI && middleAngle <= Math.PI*2;
+      var isLeftHalf = middleAngle >= Math.PI/2 && middleAngle < Math.PI * 1.5;
+      var reverse = (isHorizontal && isTopHalf) || (!isHorizontal && isLeftHalf);
 
-      var startAngle = arcAngle * j;
-      var arcStart = {
-        x : Math.cos(startAngle) * radius,
-        y : Math.sin(startAngle) * radius,
-      };
-      var arcEnd = {
-        x : Math.cos(startAngle+arcAngle) * radius,
-        y : Math.sin(startAngle+arcAngle) * radius,
-      };
+      // slice
 
-      var lineStart = {
-        x : Math.cos(startAngle+arcAngle*.5) * (radius - thickness),
-        y : Math.sin(startAngle+arcAngle*.5) * (radius - thickness)
-      };
-      var lineEnd = {
-        x : Math.cos(startAngle+arcAngle*.5) * (radius + thickness),
-        y : Math.sin(startAngle+arcAngle*.5) * (radius + thickness)
-      };
+      var coord = slicePathCoordinates(startAngle, arcAngle, radius, thickness);
 
-      var isBottomHalf = startAngle >= Math.PI;
-      var isLeftHalf = startAngle >= Math.PI/2 && startAngle < Math.PI * 1.5;
-      var reverse = (isHorizontal && isBottomHalf) || (!isHorizontal && isLeftHalf);
+      path  = " M"+coord.arc1.a.x+","+coord.arc1.a.y;
+      path += " A"+coord.arc1.r+","+coord.arc1.r+" 0 0,1 "+coord.arc1.b.x+","+coord.arc1.b.y;
+      path += " L"+coord.arc2.a.x+","+coord.arc2.a.y;
+      path += " A"+coord.arc2.r+","+coord.arc2.r+" 0 0,0 "+coord.arc2.b.x+","+coord.arc2.b.y;
+      path += " Z";
 
-      if(isBottomHalf) {
-        arcStart.y -= border;
-        arcEnd.y -= border;
-        lineStart.y += border;
-        lineEnd.y += border;
-      }
-      if(isLeftHalf && gen > 1) {
-        arcStart.x -= border;
-        arcEnd.x -= border;
-        lineStart.x -= border;
-        lineEnd.x -= border;
-      }
-      if(gen == 1) {
-        arcStart.x -= border/2;
-        arcEnd.x -= border/2;
-        lineStart.x -= border/2;
-        lineEnd.x -= border/2;
-      }
-
-      path = "M"+arcEnd.x+","+arcEnd.y;
-      path+= " A"+radius+","+radius+" 0 0,0 "+arcStart.x+","+arcStart.y;
-
-      line = "M"+lineStart.x+","+lineStart.y+" "+lineEnd.x+","+lineEnd.y;
-      
-      // reverse paths when needed, to flip texts
-      if(reverse) {
-        path = "M"+arcStart.x+","+arcStart.y;
-        path+= " A"+radius+","+radius+" 0 0,1 "+arcEnd.x+","+arcEnd.y;
-
-        line = "M"+lineEnd.x+","+lineEnd.y+" "+lineStart.x+","+lineStart.y;
-      }
-
-      // arc
-      arc = g.path(path);
-      arc.attr({
-        fill: 'none',
-        strokeWidth: thickness
-      });
+      var slice = fan.g();
+      slice.addClass('slice GEN_'+gen);
+      slice.path(path);
 
       id++;
-      if(individuals[id] == undefined || individuals[id].tree == undefined)
+      var indiv = individuals[id];
+      if(indiv == undefined || indiv.tree == undefined) {
+        slice.addClass('empty-slice');
         continue;
+      }
+      slice.addClass(indiv.classes.join(' '));
 
       // texts
-      var attrs = {
-        textpath: isHorizontal ? path : line,
+
+      var lineCoord = slicePathCoordinates(startAngle+arcAngle*.5, 0, radius, thickness, reverse);
+      vline = "M"+lineCoord.arc1.a.x+","+lineCoord.arc1.a.y+" "+lineCoord.arc2.a.x+","+lineCoord.arc2.a.y;
+
+      textAttrs = {
+        textpath: vline,
         fontSize: 7,
         textAnchor: 'middle'
       };
-      text1 = g.text(0,0, parseTextTemplate(text1Template, individuals[id]) );
-      text1.attr(attrs);
-      text1.textPath.attr({startOffset: '50%'});
 
-      var group;
-      if (gen >= 8) {
-        text1.attr({dy: 1});
-        group = g.group(arc, text1);
+      if (isHorizontal) {
+        // mid-distance horizontal arc
+        textAttrs.textpath  = arcPath(startAngle, arcAngle, radius + thickness * .5, !reverse);
       }
-      else {
-        text2 = g.text(0,0, parseTextTemplate(text2Template, individuals[id]));
-        text2.attr(attrs);
-        text2.textPath.attr({startOffset: '50%'});
 
-        text1.attr({dy: -3});
-        text2.attr({dy: 7});
-      
-        if (gen<6) {
-          text3 = g.text(0,0, parseTextTemplate(text3Template, individuals[id]));
-          text3.attr(attrs);
-          text3.textPath.attr({startOffset: '50%'});
-
-          text1.attr({dy: -8});
-          text2.attr({dy: 3});
-          text3.attr({dy: 14});
-
-          group = g.group(arc, text1, text2, text3);
-        }
-        else group = g.group(arc, text1, text2);
-      }
-      
-      // group classes
-      for (var k = 0; k < individuals[id].classes.length; k++) {
-        group.addClass(individuals[id].classes[k]);
-      }
+      indiv.texts.forEach( function(text, index) {
+        textAttrs.dy = index*8 + indiv.texts.length*-4 +8;
+        slice.text(0,0, text )
+             .attr(textAttrs)
+             .textPath.attr({startOffset: '50%'});
+      });
     }
+    radius += thickness + border;
   }
-  // bg
-  g.prepend(s.circle(0,0,radius+thickness*.5).attr({
-    id: 'bg'
-  }));
   // size and center
-  radius += thickness;
-  s.attr({width: radius*2, height: radius*2});
-  g.transform('t'+radius+','+radius);
+  snap.attr({width: radius*2, height: radius*2});
+  fan.transform('t'+radius+','+radius);
 }
 
 }//]]> 
@@ -463,11 +495,13 @@ function drawChart (individuals) {
 <body>
 <div class="infos">Drop a GEDCOM file</div>
 <aside class="controls">
+  <label>title<textarea id="titleTemplate">Ascendants fan chart of SURS LAST<br>GENS generations</textarea></label>
   <label>generations<input type="number" id="generations" min="1" max="10" value="6"></label>
   <label>origin ID<input type="number" id="originID" min="0" max="9999" value="0"></label>
-  <label>first line<input type="text" class="textTemplate" id="text1Template" value="SURS LAST"></label>
-  <label>second line<input type="text" class="textTemplate" id="text2Template" value="BYEAR - DYEAR"></label>
-  <label>third line<input type="text" class="textTemplate" id="text3Template" value="OCCU"></label>
+  <label>content<textarea id="textTemplate">SURS...15 LAST
+BYEAR - DYEAR
+OCCU</textarea></label>
+  <label>rotation<input type="number" id="rotation" min="0" max="360" step="45" value="90"></label>
 </aside>
 <main>
   <h3 id="title"></h3>
