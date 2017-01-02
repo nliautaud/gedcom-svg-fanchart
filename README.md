@@ -2,6 +2,8 @@
 
 Create a SVG genealogical fan chart from a GEDCOM file.
 
+https://cdn.rawgit.com/nliautaud/gedcom-svg-fanchart/master/index.html
+
 ## Usage
 
 Drop a GEDCOM file onto the page.
