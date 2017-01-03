@@ -2,7 +2,8 @@
 <meta charset='utf-8'>
 <script src='https://wzrd.in/standalone/parse-gedcom@latest'></script>
 <script src='https://cdn.rawgit.com/jackmoore/autosize/master/dist/autosize.min.js'></script> 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js"></script> 
+<script src='https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js'></script> 
+<script src='https://ariutta.github.io/svg-pan-zoom/dist/svg-pan-zoom.min.js'></script> 
 <style>
   * {
     box-sizing: border-box; 
@@ -14,10 +15,20 @@
   }
 
   .infos {
+    position: absolute;
+    z-index: 2;
     height: 100%;
+    width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
+    background: #fff;
+
+    transition: opacity .5s ease, visibility 0s .5s linear;
+  }
+  .loaded .infos {
+    opacity: 0;
+    visibility: hidden;
   }
 
   aside {
@@ -46,37 +57,27 @@
   }
 
   main {
+    display: flex;
+    flex-direction: column;
     height: 100%;
     overflow: auto;
     margin-left: 12em;
   }
-
-  .loaded .infos,
-  aside,
-  main {
-    display: none;
-  }
-  .loaded main {
-    display: block;
-  }
-  .loaded aside {
-    display: flex;
+  svg {
+    width: 100%;
+    height: 100%;
   }
   @media print { 
-    .loaded aside {
+    aside {
       display: none;
     }
-    .loaded main {
+    main {
       margin-left: 0;
     }
   }
 
   #title {
     text-align: center;
-  }
-  #chart {
-    display: block;
-    margin: auto;
   }
 
 
@@ -158,6 +159,15 @@ function init(){
 
   document.body.classList.add('loaded');
   autosize.update(fields);
+
+  svgPanZoom('#chart', {
+    viewportSelector:'#view',
+    fit:true,
+    contain: true,
+    center: true,
+    maxZoom: 2,
+    minZoom: 0.5
+  });
 }
 
 function registerTextTemplates () {
@@ -414,11 +424,12 @@ function drawChart (individuals) {
   var rotation = Math.radians(Number(document.getElementById('rotation').value));
 
   var snap = Snap('#chart'),
+      view = snap.select('#viewport')
       fan = snap.select('#fan');
 
   if(fan !== null)
     fan.remove();
-  fan = snap.g().attr({id: 'fan'});
+  fan = view.g().attr({id: 'fan'});
 
   var id = 0;
   for(var gen=1; gen<=generations; gen++)
@@ -485,8 +496,8 @@ function drawChart (individuals) {
     radius += thickness + border;
   }
   // size and center
-  snap.attr({width: radius*2, height: radius*2});
-  fan.transform('t'+radius+','+radius);
+  //snap.attr({width: radius*2, height: radius*2});
+  //fan.transform('t'+radius+','+radius);
 }
 
 }//]]> 
@@ -505,5 +516,5 @@ OCCU</textarea></label>
 </aside>
 <main>
   <h3 id="title"></h3>
-  <svg id="chart"></svg>
+  <svg id="chart"><g id="viewport"></g></svg>
 </main>
