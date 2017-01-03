@@ -15,12 +15,19 @@ Tested with GEDCOM exported from Gramps (https://gramps-project.org).
 The chart title and labels are editable using text templates, where keywords in uppercase are replaced by their values.
 
 - Any GEDCOM tag, ex. ``OCCU`` : corresponding data field
-- ``LAST`` / ``SURS`` : lastname and surnames
+- ``LAST`` / ``SURN`` : lastnames and surnames
 - ``BYEAR`` / ``DYEAR`` : years of birth and death
 - ``BPLAC`` / ``DPLAC`` : place of birth and death
 - ``GENS`` : number of displayed generations
 
-Each one may be restricted to a specified number of characters (the exceeding words will be truncated and replaced by an ellipsis) by adding three dots and a number, for example ``SURS...15``.
+Values can be truncated by using numbers and dots :
+```
+SURN          John Alexander
+SURN1         John
+SURN.1        John A.
+SURN..1       John...
+SURN...1      J...
+```
 
 Each line is displayed as a separate ``<text>`` element with its different informations surrounded by ``<tspan>``.
 
