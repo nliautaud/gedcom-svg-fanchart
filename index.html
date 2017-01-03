@@ -136,6 +136,18 @@ String.prototype.trunc =
     return  isTooLong ? s_ + '...' : s_;
   };
 
+String.prototype.truncWords =
+  function( n, showFirstLetter, sep ){
+    var splitted = this.split(' '),
+        out = this;
+    if (splitted.length > n) {
+      out = splitted.slice(0, n).join(' ');
+      out += showFirstLetter ? ' ' + splitted[n].substring(0, 1) : '';
+      out += sep;
+    }
+    return out;
+  };
+
 Math.radians = function(degrees) {
   return degrees * Math.PI / 180;
 };
@@ -270,9 +282,9 @@ function parseIndividual (indiv) {
   indiv.LAST = names.lastname;
   indiv.classes.push('LAST'+cssnamify(names.lastname));
   for (var i = 0; i < names.surnames.length; i++) {
-    indiv.classes.push('SURS'+cssnamify(names.surnames[i]));
+    indiv.classes.push('SURN'+cssnamify(names.surnames[i]));
   }
-  indiv.SURS = names.surnames.join(' ');
+  indiv.SURN = names.surnames.join(' ');
 
   // birth / death
   var birth = getEventInfos(indiv, 'BIRT');
@@ -329,7 +341,7 @@ function getEventInfos (indiv, tag) {
 }
 function parseName (name) {
   var nameregex = /\/(.*?)\//;
-  var lastname = name.match(nameregex)[1];
+  var lastname = name.match(nameregex)[1].replace(/(\s*,\s*)+/g, ' ').trim();
   name = name.replace(nameregex, '');
   var surnames = name.trim().split(/[- ]+/);
   return {lastname: lastname || '', surnames: surnames};
@@ -346,14 +358,16 @@ function cssnamify(str) {
 
 function parseTextTemplate (str, indiv)
 {
-  var keyreg = /([A-Z]{3,}(?:\.\.\.\d+)?)/g;
+  var keyreg = /([A-Z]{3,}(?:\.*\d+)?)/g;
   str = str.split(keyreg).map( function(key) {
     if(!key.match(keyreg))
       return key;
 
-    var param = key.split('...');
-    key = param[0];
-    param = Number(param[1]);
+    var truncate = /([A-Z]{3,})(\.*)(\d+)/g.exec(key);
+    if(truncate !== null) {
+      key = truncate[1];
+      var truncnbr = Number(truncate[3]);
+    }
 
     if(!indiv.hasOwnProperty(key))
       return '';
@@ -362,7 +376,23 @@ function parseTextTemplate (str, indiv)
       text = indiv[key].join(' ');
     else text = indiv[key];
 
-    return ' ' + (param ? text.trunc(param, true) : text);
+    if(truncate !== null) {
+      switch (truncate[2]) {
+        case '...':
+          text = text.trunc(truncnbr, false);
+          break;
+        case '..':
+          text = text.truncWords(truncnbr, false, '...');
+          break;
+        case '.':
+          text = text.truncWords(truncnbr, true, '.');
+          break;
+        default:
+          text = text.truncWords(truncnbr, false, '');
+          break;
+      }
+    }
+    return ' ' + text;
   });
   return str;
 }
@@ -506,10 +536,10 @@ function drawChart (individuals) {
 <body>
 <div class="infos">Drop a GEDCOM file</div>
 <aside class="controls">
-  <label>title<textarea id="titleTemplate">Ascendants fan chart of SURS LAST<br>GENS generations</textarea></label>
+  <label>title<textarea id="titleTemplate">Ascendants fan chart of SURN LAST<br>GENS generations</textarea></label>
   <label>generations<input type="number" id="generations" min="1" max="10" value="6"></label>
   <label>origin ID<input type="number" id="originID" min="0" max="9999" value="0"></label>
-  <label>content<textarea id="textTemplate">SURS...15 LAST
+  <label>content<textarea id="textTemplate">SURN.1 LAST2
 BYEAR - DYEAR
 OCCU</textarea></label>
   <label>rotation<input type="number" id="rotation" min="0" max="360" step="45" value="90"></label>
