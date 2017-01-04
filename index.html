@@ -164,10 +164,15 @@ function init(){
       origin = parseIndividual(getOrigin(originID)),
       ancestors = getAncestors(origin);
 
-  //console.log(ancestors);
+  // console.log(ancestors);
 
   setTitle(origin);
-  drawChart(ancestors);
+  drawChart(ancestors, {
+    rotation: Math.radians(Number(document.getElementById('rotation').value)),
+    fontSize: Number(document.getElementById('fontSize').value),
+    padding: Number(document.getElementById('padding').value),
+    genSpacing: Number(document.getElementById('genSpacing').value)
+  });
 
   document.body.classList.add('loaded');
   autosize.update(fields);
@@ -397,19 +402,22 @@ function parseTextTemplate (str, indiv)
   return str;
 }
 
-function maxTextsLength (indivs, start, end) {
-  var max = 0, curr;
+function maxTextsSizes (indivs, start, end, options) {
+  var maxLength = 0, curr;
   for (var i=start; i<end; i++) {
     if(indivs[i] == undefined || indivs[i].texts == undefined)
       continue;
     indivs[i].texts.forEach( function(el, i) {
-      curr = el.join(' ').length *3;
-      if (curr > max) {
-        max = curr;
+      curr = el.join(' ').length;
+      if (curr > maxLength) {
+        maxLength = curr;
       }
     });
   }
-  return max;
+  return {
+    width: maxLength * (options.fontSize*.35) + options.padding,
+    height: indivs[0].texts.length * options.fontSize + options.padding
+  };
 }
 
 function slicePathCoordinates (start, angle, r, t, reverse) {
@@ -439,23 +447,36 @@ function arcPath (start, angle, r, reverse) {
       arcdir = reverse ? '0,0' : '0,1';
   return " M"+c.a.x+","+c.a.y + " A"+r+","+r+" 0 "+arcdir+" "+c.b.x+","+c.b.y;
 }
+function setDefault (obj, def) {
+  for (key in obj) {
+    if(obj[key] === undefined && def[key] !== undefined)
+      obj[key] = def[key];
+  }
+  return obj;
+}
 
-function drawChart (individuals) {
+function drawChart (individuals, options) {
 
-  var baseThickness = 35,
-      border = 1;
+  options = setDefault(options, {
+    rotation: Math.radians(90),
+    genSpacing: 1,
+    padding: 10,
+    fontSize: 7
+  });
 
-  var radius = baseThickness,
+  var radius = 30,  // center radius
       thickness,
-      path, vline,
-      text, textAttrs, textY;
+      snap, view, fan, slice, // snapsvg objects
+      coord, slicePath,
+      lineCoord, linePath, lineNbr, spliceWidth,
+      textAttrs = {
+        fontSize: options.fontSize,
+        textAnchor: 'middle'
+      };
 
-
-  var rotation = Math.radians(Number(document.getElementById('rotation').value));
-
-  var snap = Snap('#chart'),
-      view = snap.select('#viewport')
-      fan = snap.select('#fan');
+  snap = Snap('#chart');
+  view = snap.select('#viewport');
+  fan = snap.select('#fan');
 
   if(fan !== null)
     fan.remove();
@@ -467,12 +488,13 @@ function drawChart (individuals) {
     var isHorizontal = gen < 4;
     var arcsNbr = Math.pow(2, gen);
     var arcAngle = 2*Math.PI / arcsNbr;
+    var maxTexts = maxTextsSizes(individuals, id, id+arcsNbr, options);
 
-    thickness = isHorizontal ? baseThickness : maxTextsLength(individuals, id, id+arcsNbr);
+    thickness = isHorizontal ? maxTexts.height : maxTexts.width;
 
-    for(var j=0; j<arcsNbr; j++)
+    for(var sliceID=0; sliceID<arcsNbr; sliceID++)
     {
-      var startAngle = arcAngle * j + rotation;
+      var startAngle = arcAngle * sliceID + options.rotation;
       var middleAngle = startAngle + arcAngle * .5;
       var isTopHalf = middleAngle >= Math.PI && middleAngle <= Math.PI*2;
       var isLeftHalf = middleAngle >= Math.PI/2 && middleAngle < Math.PI * 1.5;
@@ -480,18 +502,19 @@ function drawChart (individuals) {
 
       // slice
 
-      var coord = slicePathCoordinates(startAngle, arcAngle, radius, thickness);
+      coord = slicePathCoordinates(startAngle, arcAngle, radius, thickness);
 
-      path  = " M"+coord.arc1.a.x+","+coord.arc1.a.y;
-      path += " A"+coord.arc1.r+","+coord.arc1.r+" 0 0,1 "+coord.arc1.b.x+","+coord.arc1.b.y;
-      path += " L"+coord.arc2.a.x+","+coord.arc2.a.y;
-      path += " A"+coord.arc2.r+","+coord.arc2.r+" 0 0,0 "+coord.arc2.b.x+","+coord.arc2.b.y;
-      path += " Z";
+      slicePath  = " M"+coord.arc1.a.x+","+coord.arc1.a.y;
+      slicePath += " A"+coord.arc1.r+","+coord.arc1.r+" 0 0,1 "+coord.arc1.b.x+","+coord.arc1.b.y;
+      slicePath += " L"+coord.arc2.a.x+","+coord.arc2.a.y;
+      slicePath += " A"+coord.arc2.r+","+coord.arc2.r+" 0 0,0 "+coord.arc2.b.x+","+coord.arc2.b.y;
+      slicePath += " Z";
 
-      var slice = fan.g();
+      slice = fan.g();
       slice.addClass('slice GEN_'+gen);
-      slice.path(path);
+      slice.path(slicePath);
 
+      // related individual
       id++;
       var indiv = individuals[id];
       if(indiv == undefined || indiv.tree == undefined) {
@@ -502,28 +525,33 @@ function drawChart (individuals) {
 
       // texts
 
-      var lineCoord = slicePathCoordinates(startAngle+arcAngle*.5, 0, radius, thickness, reverse);
-      vline = "M"+lineCoord.arc1.a.x+","+lineCoord.arc1.a.y+" "+lineCoord.arc2.a.x+","+lineCoord.arc2.a.y;
-
-      textAttrs = {
-        textpath: vline,
-        fontSize: 7,
-        textAnchor: 'middle'
-      };
-
       if (isHorizontal) {
-        // mid-distance horizontal arc
+        // centered horizontal arc
         textAttrs.textpath  = arcPath(startAngle, arcAngle, radius + thickness * .5, !reverse);
+        // all lines
+        lineNbr = indiv.texts.length;
+      } else {
+        // centered vertical line
+        lineCoord = slicePathCoordinates(startAngle+arcAngle*.5, 0, radius, thickness, reverse);
+        textAttrs.textpath = "M"+lineCoord.arc1.a.x+","+lineCoord.arc1.a.y+" "+lineCoord.arc2.a.x+","+lineCoord.arc2.a.y;
+        // limit line number to disponible slice size
+        lineNbr = 0;
+        spliceWidth = Math.pow(coord.arc1.a.x - coord.arc1.b.x, 2) + Math.pow(coord.arc1.a.y - coord.arc1.b.y, 2);
+        indiv.texts.forEach( function(text, index) {
+          if (Math.pow((index+1) * options.fontSize, 2) < spliceWidth)
+            lineNbr++;
+        });
       }
 
       indiv.texts.forEach( function(text, index) {
-        textAttrs.dy = index*8 + indiv.texts.length*-4 +8;
+        if(index+1 > lineNbr) return;
+        textAttrs.dy = (index+1) * options.fontSize - lineNbr*(.5*options.fontSize);
         slice.text(0,0, text )
              .attr(textAttrs)
              .textPath.attr({startOffset: '50%'});
       });
     }
-    radius += thickness + border;
+    radius += thickness + options.genSpacing;
   }
   // size and center
   //snap.attr({width: radius*2, height: radius*2});
@@ -543,6 +571,9 @@ function drawChart (individuals) {
 BYEAR - DYEAR
 OCCU</textarea></label>
   <label>rotation<input type="number" id="rotation" min="0" max="360" step="45" value="90"></label>
+  <label>fontSize<input type="number" id="fontSize" min="5" max="20" step="1" value="7"></label>
+  <label>padding<input type="number" id="padding" min="0" max="50" step="10" value="10"></label>
+  <label>generation spacing<input type="number" id="genSpacing" min="0" max="20" step="1" value="1"></label>
 </aside>
 <main>
   <h3 id="title"></h3>

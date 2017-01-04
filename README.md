@@ -10,9 +10,22 @@ Drop a GEDCOM file onto the page.
 
 Tested with GEDCOM exported from Gramps (https://gramps-project.org).
 
-## Chart texts
+## Settings
 
-The chart title and labels are editable using text templates, where keywords in uppercase are replaced by their values.
+The chart is automaticaly redrawn when editing the following parameters.
+
+- **title** : dynamic text template for the chart title. Ex: ``Ascendants fan chart of SURN LAST on GENS generations``.
+- **content** : dynamic text template for the chart labels. Ex: ``SURN.1 LAST2, born in BYEAR``.
+- **generations** : number of ancestors generations to show in the chart.
+- **origin ID** : number of the GEDCOM individual to use as center of the chart.
+- **rotation** : each label is drawn in the most readable orientation according to the slice size and chart rotation.
+- **font size** : slices sizes and labels are adjusted accoding to the content size.
+- **padding** : space surrounding labels.
+- **generation spacing** : space between generation circles.
+
+## Dynamic text templates
+
+The chart title and slices labels use text templates, where keywords in uppercase are dynamicaly replaced by corresponding values.
 
 - Any GEDCOM tag, ex. ``OCCU`` : corresponding data field
 - ``LAST`` / ``SURN`` : lastnames and surnames
@@ -29,18 +42,17 @@ SURN..1       John...
 SURN...1      J...
 ```
 
-Each line is displayed as a separate ``<text>`` element with its different informations surrounded by ``<tspan>``.
-
-Labels are drawn in the best direction according to the slices sizes, orientations and to the chart rotation, and the slices sizes ar adapted to the labels content length.
-
 ## Editing & printing
 
 You can print the page (to a real printer, to PDF...) using the *print* option of your modern web browser.
 
 The chart style is extensively editable with CSS, as every slice is populated with useful CSS classes of form ``.TAGNAME_tagvalue`` (genders, names, places...) .
 
+Each line of text is displayed as a separate ``<text>`` element, the different pieces of information being surrounded by ``<tspan>``.
+
 ## External libraries
 
 - GEDCOM parser : https://github.com/tmcw/parse-gedcom
-- SVG drawing : https://github.com/adobe-webplatform/Snap.svg/
+- SVG drawing : https://github.com/adobe-webplatform/Snap.svg
+- SVG pan and zoom : https://github.com/ariutta/svg-pan-zoom
 - Textarea resizing : https://github.com/jackmoore/autosize
