@@ -98,9 +98,12 @@ window.onload=function(){
 
 var tree, origin, ancestors,
     generations = 8,
-    allTags = {},
+    allTags,
     main = document.getElementById('main'),
     chartStyle = document.getElementById('chartStyle');
+
+var palette = new Worker('palette.js');
+palette.addEventListener('message', addPalette, false);
 
 // file drop
 
@@ -172,9 +175,11 @@ Math.radians = function(degrees) {
   return degrees * Math.PI / 180;
 };
 
+// main
+
 function parseFileContent (e) {
   tree = parseGedcom.parse(e.target.result);
-
+  allTags = {};
   tree = tree.map(function (el) {
     if (el.tag !== 'INDI') return el;
     return parseIndividual(el);
@@ -238,10 +243,10 @@ function updateTitle () {
 
 
 function createPalettes () {
+  chartStyle.innerText = '';
+  paletteSelector.innerHTML = '<option value=""></option>';
   for (tag in allTags) {
     if(allTags[tag].length < 2) continue;
-    var palette = new Worker('palette.js');
-    palette.addEventListener('message', addPalette, false);
     palette.postMessage({tag:tag, nbr:allTags[tag].length});
   }
 }
@@ -249,8 +254,6 @@ function addPalette(e) {
   if (!addPalette.enabled) {
     // reset styles and options
     paletteSelector.disabled = '';
-    chartStyle.innerText = '';
-    paletteSelector.innerHTML = '<option value=""></option>';
     addPalette.enabled = true;
   }
   // add styles
@@ -259,7 +262,7 @@ function addPalette(e) {
     chartStyle.innerText += '.show_'+e.data.tag+' .'+tagClass+' path{fill:'+color+'}';
   });
   // add option
-  paletteSelector.innerHTML += '<option value="'+e.data.tag+'">'+e.data.tag+'</option>'
+  paletteSelector.innerHTML += '<option value="'+e.data.tag+'">'+e.data.tag+'</option>';
 }
 function switchPalette () {
   var selectedTag = paletteSelector.options[paletteSelector.selectedIndex].value;
