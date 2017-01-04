@@ -31,7 +31,8 @@ The chart title and slices labels use text templates, where keywords in uppercas
 - Any GEDCOM tag, ex. ``OCCU`` : corresponding data field
 - ``LAST`` / ``SURN`` : lastnames and surnames
 - ``BYEAR`` / ``DYEAR`` : years of birth and death
-- ``BPLAC`` / ``DPLAC`` : place of birth and death
+- ``BPLAC`` (and ``BCOUNTR, BSTATE, BDISTR, BTOWN``) : place of birth (and country, state, district, town)
+- ``DPLAC`` (and ``DCOUNTR, DSTATE, DDISTR, DTOWN``) : place of death (and country, state, district, town)
 - ``GENS`` : number of displayed generations
 
 Values can be truncated by using numbers and dots :
