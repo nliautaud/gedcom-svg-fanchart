@@ -384,6 +384,7 @@ function parseIndividual (indiv) {
     places.reverse();
     places.forEach(function (el, i) {
       registerTagClass(indiv, 'B'+placesKeys[i], el);
+      indiv['B'+placesKeys[i]] = el;
     });
   }
   indiv.DPLAC = death.plac;
@@ -392,6 +393,7 @@ function parseIndividual (indiv) {
     places.reverse();
     places.forEach(function (el) {
       registerTagClass(indiv, 'D'+placesKeys[i], el);
+      indiv['D'+placesKeys[i]] = el;
     });
   }
 
@@ -461,7 +463,7 @@ function parseTextTemplate (str, indiv)
       key = truncate[1];
       var truncnbr = Number(truncate[3]);
     }
-    
+
     if(key == 'GENS') return generations.value;
 
     if(!indiv.hasOwnProperty(key))
