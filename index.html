@@ -97,7 +97,6 @@
 window.onload=function(){
 
 var tree, origin, ancestors,
-    generations = 8,
     allTags,
     main = document.getElementById('main'),
     chartStyle = document.getElementById('chartStyle');
@@ -125,14 +124,16 @@ window.addEventListener('drop', function(e) {
 // settings changes
 
 var originID = document.getElementById('originID');
-originID.addEventListener('change', function () { 
-  registerOrigin();
-  updateTitle();
-});
+originID.addEventListener('change', registerOrigin);
+
+var generations = document.getElementById('generations');
 
 var fields = document.querySelectorAll('input');
 [].forEach.call(fields, function(el) {
-  el.addEventListener('change', updateChart);
+  el.addEventListener('change', function () { 
+    updateTitle();
+    updateChart();
+  });
 });
 
 var titleTemplate = document.getElementById('titleTemplate');
@@ -194,7 +195,6 @@ function parseFileContent (e) {
 
 function updateChart() {
 
-  generations = document.getElementById('generations').value;
   ancestors = getAncestors(origin);
 
   // console.log(tree);
@@ -280,7 +280,7 @@ function registerOrigin () {
 
 function getAncestors (origin) {
   var individuals = [origin];
-  for (var gen = 0; gen <= generations; gen++)
+  for (var gen = 0; gen <= generations.value; gen++)
   {
     var start = Math.floor(Math.pow(2, gen-1)),
         end = Math.pow(2, gen);
@@ -343,7 +343,7 @@ function getParents (indiv)
 
 function parseIndividual (indiv) {
   indiv.classes = [];
-  indiv.GENS = generations;
+
   // generic tags
   var tag, cl,
       exclude = ['NAME', 'FAMC', 'FAMS', 'BIRT', 'DEAT', 'EVEN', 'CHAN'];
@@ -461,6 +461,8 @@ function parseTextTemplate (str, indiv)
       key = truncate[1];
       var truncnbr = Number(truncate[3]);
     }
+    
+    if(key == 'GENS') return generations.value;
 
     if(!indiv.hasOwnProperty(key))
       return '';
@@ -572,7 +574,7 @@ function drawChart (individuals, options) {
   fan = view.g().attr({id: 'fan'});
 
   var id = 0;
-  for(var gen=1; gen<=generations; gen++)
+  for(var gen=1; gen<=generations.value; gen++)
   {
     var isHorizontal = gen < 4;
     var arcsNbr = Math.pow(2, gen);
