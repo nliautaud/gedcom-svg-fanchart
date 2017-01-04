@@ -22,6 +22,7 @@ The chart is automaticaly redrawn when editing the following parameters.
 - **font size** : slices sizes and labels are adjusted accoding to the content size.
 - **padding** : space surrounding labels.
 - **generation spacing** : space between generation circles.
+- **color palette** : colorize the chart according to a specific data (need ``palette.js`` companion file).
 
 ## Dynamic text templates
 
@@ -56,3 +57,4 @@ Each line of text is displayed as a separate ``<text>`` element, the different p
 - SVG drawing : https://github.com/adobe-webplatform/Snap.svg
 - SVG pan and zoom : https://github.com/ariutta/svg-pan-zoom
 - Textarea resizing : https://github.com/jackmoore/autosize
+- Colors palettes generation : https://github.com/medialab/iwanthue

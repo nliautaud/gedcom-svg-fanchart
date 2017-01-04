@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
 <script src='https://wzrd.in/standalone/parse-gedcom@latest'></script>
-<script src='https://cdn.rawgit.com/jackmoore/autosize/master/dist/autosize.min.js'></script> 
-<script src='https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js'></script> 
-<script src='https://ariutta.github.io/svg-pan-zoom/dist/svg-pan-zoom.min.js'></script> 
+<script src='https://cdn.rawgit.com/jackmoore/autosize/master/dist/autosize.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js'></script>
+<script src='https://ariutta.github.io/svg-pan-zoom/dist/svg-pan-zoom.min.js'></script>
 <style>
   * {
     box-sizing: border-box; 
@@ -42,7 +42,8 @@
     padding: 1em;
   }
   aside input,
-  aside textarea {
+  aside textarea,
+  aside select {
     width: 100%;
     border: 1px solid #ddd;
     padding: .25em;
@@ -97,7 +98,10 @@ window.onload=function(){
 
 var generations = 8,
     tree,
-    textTemplates = [];
+    textTemplates = [],
+    allTags = {},
+    main = document.getElementById('main'),
+    chartStyle = document.getElementById('chartStyle');
 
 // file drop
 
@@ -125,6 +129,9 @@ var fields = document.querySelectorAll('input, textarea');
   el.addEventListener('change', init);
 });
 autosize(fields);
+
+var paletteSelector = document.getElementById('paletteSelector');
+paletteSelector.addEventListener('change', switchPalette);
 
 // helpers
 
@@ -156,17 +163,19 @@ Math.radians = function(degrees) {
 
 function init(){
 
-  generations = document.getElementById('generations').value;
-
   registerTextTemplates();
 
-  var originID = document.getElementById('originID').value,
-      origin = parseIndividual(getOrigin(originID)),
+  generations = document.getElementById('generations').value;
+
+  var origin = parseIndividual(getOrigin()),
       ancestors = getAncestors(origin);
 
   // console.log(ancestors);
 
+  createPalettes();
+
   setTitle(origin);
+
   drawChart(ancestors, {
     rotation: Math.radians(Number(document.getElementById('rotation').value)),
     fontSize: Number(document.getElementById('fontSize').value),
@@ -187,6 +196,8 @@ function init(){
   });
 }
 
+
+
 function registerTextTemplates () {
   var template = document.getElementById('textTemplate').value;
   textTemplates = template.split('\n').filter(function (el, i) {
@@ -194,15 +205,52 @@ function registerTextTemplates () {
   });
 }
 
+
+
+function createPalettes () {
+  for (tag in allTags) {
+    if(allTags[tag].length < 2) continue;
+    var palette = new Worker('palette.js');
+    palette.addEventListener('message', addPalette, false);
+    palette.postMessage({tag:tag, nbr:allTags[tag].length});
+  }
+}
+function addPalette(e) {
+  if (!addPalette.enabled) {
+    // reset styles and options
+    paletteSelector.disabled = '';
+    chartStyle.innerText = '';
+    paletteSelector.innerHTML = '<option value=""></option>';
+    addPalette.enabled = true;
+  }
+  // add styles
+  allTags[e.data.tag].forEach( function(tagClass, i) {
+    var color = 'rgba('+e.data.colors[i]._rgb.join(',')+')';
+    chartStyle.innerText += '.show_'+e.data.tag+' .'+tagClass+' path{fill:'+color+'}';
+  });
+  // add option
+  paletteSelector.innerHTML += '<option value="'+e.data.tag+'">'+e.data.tag+'</option>'
+}
+function switchPalette () {
+  var selectedTag = paletteSelector.options[paletteSelector.selectedIndex].value;
+  main.className = '';
+  main.classList.add('show_'+selectedTag);
+}
+
+
+
 function setTitle (origin) {
   var titleTemplate = document.getElementById('titleTemplate').value;
   document.getElementById('title').innerHTML = parseTextTemplate(titleTemplate, origin).join(' ');
 }
 
-function getOrigin (id) {
+
+
+function getOrigin () {
+  var originID = document.getElementById('originID').value;
   return tree.filter(function (el) {
     return el.tag == 'INDI';
-  })[id];
+  })[originID];
 }
 
 function getAncestors (origin) {
@@ -272,22 +320,22 @@ function parseIndividual (indiv) {
   indiv.classes = [];
   indiv.GENS = generations;
   // generic tags
-  var tag,
-      exclude = ['FAMC', 'FAMS', 'BIRT', 'DEAT', 'EVEN', 'SOUR', 'CHAN'];
+  var tag, cl,
+      exclude = ['NAME', 'FAMC', 'FAMS', 'BIRT', 'DEAT', 'EVEN', 'SOUR', 'CHAN'];
   for (var i = 0; i < indiv.tree.length; i++) {
     tag = indiv.tree[i].tag;
     if (exclude.indexOf(tag) != -1)
       continue;
     indiv[tag] = indiv.tree[i].data;
-    indiv.classes.push(tag+cssnamify(indiv.tree[i].data));
+    registerTagClass(indiv, tag, indiv.tree[i].data);
   }
 
   // name
   var names = parseName(indiv.tree[0].data);
   indiv.LAST = names.lastname;
-  indiv.classes.push('LAST'+cssnamify(names.lastname));
+  registerTagClass(indiv, 'LAST', names.lastname);
   for (var i = 0; i < names.surnames.length; i++) {
-    indiv.classes.push('SURN'+cssnamify(names.surnames[i]));
+    registerTagClass(indiv, 'SURN', names.surnames[i]);
   }
   indiv.SURN = names.surnames.join(' ');
 
@@ -300,7 +348,7 @@ function parseIndividual (indiv) {
   indiv.BPLAC = birth.plac;
   if(indiv.BPLAC)
     indiv.BPLAC.split(',').forEach(function (el) {
-      indiv.classes.push('PLAC'+cssnamify(el));
+      registerTagClass(indiv, 'BPLAC', el);
     });
 
   var death = getEventInfos(indiv, 'DEAT');
@@ -311,7 +359,7 @@ function parseIndividual (indiv) {
   indiv.DPLAC = death.plac;
   if(indiv.DPLAC)
     indiv.DPLAC.split(',').forEach(function (el) {
-      indiv.classes.push('PLAC'+cssnamify(el));
+      registerTagClass(indiv, 'DPLAC', el);
     });
 
   // texts contents
@@ -322,6 +370,16 @@ function parseIndividual (indiv) {
 
   return indiv; 
 }
+
+function registerTagClass (indiv, tag, data) {
+  var className = tag+cssnamify(data);
+  indiv.classes.push(className);
+  if (allTags[tag] === undefined)
+    allTags[tag] = [];
+  if (allTags[tag].indexOf(className) === -1)
+    allTags[tag].push(className);
+}
+
 function getData (node, tag) {
   if(node.tree == undefined) return '';
   var result = node.tree.find(function (el) {
@@ -360,6 +418,8 @@ function cssnamify(str) {
     return '';
   });
 }
+
+
 
 function parseTextTemplate (str, indiv)
 {
@@ -401,6 +461,7 @@ function parseTextTemplate (str, indiv)
   });
   return str;
 }
+
 
 function maxTextsSizes (indivs, start, end, options) {
   var maxLength = 0, curr;
@@ -553,9 +614,6 @@ function drawChart (individuals, options) {
     }
     radius += thickness + options.genSpacing;
   }
-  // size and center
-  //snap.attr({width: radius*2, height: radius*2});
-  //fan.transform('t'+radius+','+radius);
 }
 
 }//]]> 
@@ -574,8 +632,10 @@ OCCU</textarea></label>
   <label>fontSize<input type="number" id="fontSize" min="5" max="20" step="1" value="7"></label>
   <label>padding<input type="number" id="padding" min="0" max="50" step="10" value="10"></label>
   <label>generation spacing<input type="number" id="genSpacing" min="0" max="20" step="1" value="1"></label>
+  <label>color palette<select id="paletteSelector" disabled="disabled"></select></label>
 </aside>
-<main>
+<main id="main">
   <h3 id="title"></h3>
+  <style id="chartStyle"></style>
   <svg id="chart"><g id="viewport"></g></svg>
 </main>
