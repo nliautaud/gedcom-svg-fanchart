@@ -7,8 +7,8 @@ self.addEventListener('message', function (e) {
     function(color){ // This function filters valid colors
       var hcl = color.hcl();
       return hcl[0]>=0 && hcl[0]<=360
-        && hcl[1]>=40 && hcl[1]<=70
-        && hcl[2]>=15 && hcl[2]<=85;
+        && hcl[1]>=10 && hcl[1]<=50
+        && hcl[2]>=60 && hcl[2]<=90;
     },
     false, // Using Force Vector instead of k-Means
     10, // Steps (quality)
@@ -16,6 +16,6 @@ self.addEventListener('message', function (e) {
     'Default' // Color distance type (colorblindness)
   );
   // Sort colors by differenciation first
-  colors = paletteGenerator.diffSort(colors, 'Default');
+  //colors = paletteGenerator.diffSort(colors, 'Default');
   postMessage( {tag:e.data.tag, colors:colors} );
 }, false);
