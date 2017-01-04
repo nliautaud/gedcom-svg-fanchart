@@ -96,9 +96,8 @@
 <script type="text/javascript">//<![CDATA[
 window.onload=function(){
 
-var generations = 8,
-    tree,
-    textTemplates = [],
+var tree, origin, ancestors,
+    generations = 8,
     allTags = {},
     main = document.getElementById('main'),
     chartStyle = document.getElementById('chartStyle');
@@ -116,22 +115,36 @@ window.addEventListener('drop', function(e) {
   var f = e.dataTransfer.files[0],
       reader = new FileReader();
 
-  reader.onload = function(e) {
-    tree = parseGedcom.parse(e.target.result);
-    init();
-  };
+  reader.onload = parseFileContent;
   reader.readAsText(f);
 }, false);
 
-// reload chart on settings changes
-var fields = document.querySelectorAll('input, textarea');
-[].forEach.call(fields, function(el) {
-  el.addEventListener('change', init);
+// settings changes
+
+var originID = document.getElementById('originID');
+originID.addEventListener('change', function () { 
+  registerOrigin();
+  updateTitle();
 });
-autosize(fields);
+
+var fields = document.querySelectorAll('input');
+[].forEach.call(fields, function(el) {
+  el.addEventListener('change', updateChart);
+});
+
+var titleTemplate = document.getElementById('titleTemplate');
+titleTemplate.addEventListener('input', updateTitle);
+
+var textTemplate = document.getElementById('textTemplate');
+textTemplate.addEventListener('change', function () {
+  updateTexts();
+  updateChart();
+});
 
 var paletteSelector = document.getElementById('paletteSelector');
 paletteSelector.addEventListener('change', switchPalette);
+
+autosize(document.getElementsByTagName('textarea'));
 
 // helpers
 
@@ -159,22 +172,27 @@ Math.radians = function(degrees) {
   return degrees * Math.PI / 180;
 };
 
-// init
+function parseFileContent (e) {
+  tree = parseGedcom.parse(e.target.result);
 
-function init(){
-
-  registerTextTemplates();
-
-  generations = document.getElementById('generations').value;
-
-  var origin = parseIndividual(getOrigin()),
-      ancestors = getAncestors(origin);
-
-  // console.log(ancestors);
+  tree = tree.map(function (el) {
+    if (el.tag !== 'INDI') return el;
+    return parseIndividual(el);
+  });
 
   createPalettes();
+  registerOrigin();
+  updateTitle();
+  updateTexts();
+  updateChart();
+}
 
-  setTitle(origin);
+function updateChart() {
+
+  generations = document.getElementById('generations').value;
+  ancestors = getAncestors(origin);
+
+  // console.log(tree);
 
   drawChart(ancestors, {
     rotation: Math.radians(Number(document.getElementById('rotation').value)),
@@ -184,7 +202,6 @@ function init(){
   });
 
   document.body.classList.add('loaded');
-  autosize.update(fields);
 
   svgPanZoom('#chart', {
     viewportSelector:'#view',
@@ -198,11 +215,24 @@ function init(){
 
 
 
-function registerTextTemplates () {
-  var template = document.getElementById('textTemplate').value;
-  textTemplates = template.split('\n').filter(function (el, i) {
-    return el.trim().length > 0;
+function updateTexts () {
+
+  var lines = textTemplate.value
+    .split('\n')
+    .filter(function (el, i) {
+      return el.trim().length > 0;
+    });
+
+  tree.forEach( function(el) {
+    if(el.tag !== 'INDI') return;
+    el.texts = [];
+    for (var i = 0; i < lines.length; i++) {
+      el.texts.push(parseTextTemplate(lines[i], el));
+    }
   });
+}
+function updateTitle () {
+  document.getElementById('title').innerHTML = parseTextTemplate(titleTemplate.value, origin).join(' ');
 }
 
 
@@ -239,18 +269,11 @@ function switchPalette () {
 
 
 
-function setTitle (origin) {
-  var titleTemplate = document.getElementById('titleTemplate').value;
-  document.getElementById('title').innerHTML = parseTextTemplate(titleTemplate, origin).join(' ');
-}
 
-
-
-function getOrigin () {
-  var originID = document.getElementById('originID').value;
-  return tree.filter(function (el) {
+function registerOrigin () {
+  origin = tree.filter(function (el) {
     return el.tag == 'INDI';
-  })[originID];
+  })[originID.value];
 }
 
 function getAncestors (origin) {
@@ -362,16 +385,11 @@ function parseIndividual (indiv) {
       registerTagClass(indiv, 'DPLAC', el);
     });
 
-  // texts contents
-  indiv.texts = [];
-  for (var i = 0; i < textTemplates.length; i++) {
-    indiv.texts.push(parseTextTemplate(textTemplates[i], indiv));
-  }
-
   return indiv; 
 }
 
 function registerTagClass (indiv, tag, data) {
+  data = data.split(/[, ]/g)[0];
   var className = tag+cssnamify(data);
   indiv.classes.push(className);
   if (allTags[tag] === undefined)
