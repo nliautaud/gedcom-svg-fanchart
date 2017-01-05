@@ -95,7 +95,7 @@
 </style>
 <script type="javascript/worker" id="paletteWorker">
 importScripts('https://cdn.rawgit.com/gka/chroma.js/master/chroma.min.js');
-importScripts('http://tools.medialab.sciences-po.fr/iwanthue/js/libs/chroma.palette-gen.js');
+importScripts('https://cdn.rawgit.com/medialab/iwanthue/master/js/libs/chroma.palette-gen.js');
 
 self.addEventListener('message', function (e) {
   var colors = paletteGenerator.generate(
