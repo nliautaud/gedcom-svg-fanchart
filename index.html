@@ -93,15 +93,43 @@
   }
 
 </style>
+<script type="javascript/worker" id="paletteWorker">
+importScripts('https://cdn.rawgit.com/gka/chroma.js/master/chroma.min.js');
+importScripts('http://tools.medialab.sciences-po.fr/iwanthue/js/libs/chroma.palette-gen.js');
+
+self.addEventListener('message', function (e) {
+  var colors = paletteGenerator.generate(
+    e.data.nbr, // number of colors
+    function(color){ // This function filters valid colors
+      var hcl = color.hcl();
+      return hcl[0]>=0 && hcl[0]<=360
+        && hcl[1]>=10 && hcl[1]<=50
+        && hcl[2]>=60 && hcl[2]<=90;
+    },
+    false, // Using Force Vector instead of k-Means
+    10, // Steps (quality)
+    false, // Ultra precision
+    'Default' // Color distance type (colorblindness)
+  );
+  // Sort colors by differenciation first
+  //colors = paletteGenerator.diffSort(colors, 'Default');
+  postMessage( {tag:e.data.tag, colors:colors} );
+}, false);
+</script>
+<script type="application/json" id="dataStr"></script>
 <script type="text/javascript">//<![CDATA[
 window.onload=function(){
 
-var tree, origin, ancestors,
-    allTags,
+var data = {}, ancestors,
     main = document.getElementById('main'),
     chartStyle = document.getElementById('chartStyle');
 
-var palette = new Worker('palette.js');
+// palette embedded worker
+
+var blob = new Blob([
+      document.querySelector('#paletteWorker').textContent
+    ], { type: "text/javascript" })
+var palette = new Worker(window.URL.createObjectURL(blob));
 palette.addEventListener('message', addPalette, false);
 
 // file drop
@@ -133,16 +161,20 @@ var fields = document.querySelectorAll('input');
   el.addEventListener('change', function () { 
     updateTitle();
     updateChart();
+    el.setAttribute('value', el.value);
   });
 });
 
 var titleTemplate = document.getElementById('titleTemplate');
-titleTemplate.addEventListener('input', updateTitle);
-
+titleTemplate.addEventListener('input', function (el) {
+  updateTitle();
+  titleTemplate.innerHTML = titleTemplate.value;
+});
 var textTemplate = document.getElementById('textTemplate');
-textTemplate.addEventListener('change', function () {
+textTemplate.addEventListener('change', function (el) {
   updateTexts();
   updateChart();
+  textTemplate.innerHTML = textTemplate.value;
 });
 
 var paletteSelector = document.getElementById('paletteSelector');
@@ -150,38 +182,48 @@ paletteSelector.addEventListener('change', switchPalette);
 
 autosize(document.getElementsByTagName('textarea'));
 
+// retrieve saved data
+
+var dataStr = document.getElementById('dataStr');
+retrieveContent();
+
 // helpers
 
-String.prototype.trunc =
-  function( n, useWordBoundary ){
-    var isTooLong = this.length > n,
-        s_ = isTooLong ? this.substr(0,n-1) : this;
-    s_ = (useWordBoundary && isTooLong) ? s_.substr(0,s_.lastIndexOf(' ')) : s_;
-    return  isTooLong ? s_ + '...' : s_;
-  };
+function truncText ( str, n, useWordBoundary ){
+  var isTooLong = str.length > n,
+      s_ = isTooLong ? str.substr(0,n-1) : str;
+  s_ = (useWordBoundary && isTooLong) ? s_.substr(0,s_.lastIndexOf(' ')) : s_;
+  return  isTooLong ? s_ + '...' : s_;
+};
 
-String.prototype.truncWords =
-  function( n, showFirstLetter, sep ){
-    var splitted = this.split(' '),
-        out = this;
-    if (splitted.length > n) {
-      out = splitted.slice(0, n).join(' ');
-      out += showFirstLetter ? ' ' + splitted[n].substring(0, 1) : '';
-      out += sep;
-    }
-    return out;
-  };
+function truncWords ( str, n, showFirstLetter, sep ){
+  var splitted = str.split(' '),
+      out = str;
+  if (splitted.length > n) {
+    out = splitted.slice(0, n).join(' ');
+    out += showFirstLetter ? ' ' + splitted[n].substring(0, 1) : '';
+    out += sep;
+  }
+  return out;
+};
 
-Math.radians = function(degrees) {
+function radians (degrees) {
   return degrees * Math.PI / 180;
 };
 
 // main
 
+function retrieveContent () {
+  if(!dataStr.innerText.length) return;
+  data = JSON.parse(dataStr.innerText);
+}
+
 function parseFileContent (e) {
-  tree = parseGedcom.parse(e.target.result);
-  allTags = {};
-  tree = tree.map(function (el) {
+  data.tree = parseGedcom.parse(e.target.result);
+  if(!data.tree.length) return;
+
+  data.tags = {};
+  data.tree = data.tree.map(function (el) {
     if (el.tag !== 'INDI') return el;
     return parseIndividual(el);
   });
@@ -195,12 +237,12 @@ function parseFileContent (e) {
 
 function updateChart() {
 
-  ancestors = getAncestors(origin);
+  ancestors = getAncestors();
 
   // console.log(tree);
 
   drawChart(ancestors, {
-    rotation: Math.radians(Number(document.getElementById('rotation').value)),
+    rotation: radians(Number(document.getElementById('rotation').value)),
     fontSize: Number(document.getElementById('fontSize').value),
     padding: Number(document.getElementById('padding').value),
     genSpacing: Number(document.getElementById('genSpacing').value)
@@ -216,6 +258,8 @@ function updateChart() {
     maxZoom: 2,
     minZoom: 0.5
   });
+
+  dataStr.innerText = JSON.stringify(data);
 }
 
 
@@ -228,7 +272,7 @@ function updateTexts () {
       return el.trim().length > 0;
     });
 
-  tree.forEach( function(el) {
+  data.tree.forEach( function(el) {
     if(el.tag !== 'INDI') return;
     el.texts = [];
     for (var i = 0; i < lines.length; i++) {
@@ -237,7 +281,7 @@ function updateTexts () {
   });
 }
 function updateTitle () {
-  document.getElementById('title').innerHTML = parseTextTemplate(titleTemplate.value, origin).join(' ');
+  document.getElementById('title').innerHTML = parseTextTemplate(titleTemplate.value, data.origin).join(' ');
 }
 
 
@@ -245,8 +289,8 @@ function updateTitle () {
 function createPalettes () {
   chartStyle.innerText = '';
   paletteSelector.innerHTML = '<option value=""></option>';
-  for (tag in allTags) {
-    palette.postMessage({tag:tag, nbr:allTags[tag].length});
+  for (tag in data.tags) {
+    palette.postMessage({tag:tag, nbr:data.tags[tag].length});
   }
 }
 function addPalette(e) {
@@ -256,7 +300,7 @@ function addPalette(e) {
     addPalette.enabled = true;
   }
   // add styles
-  allTags[e.data.tag].forEach( function(tagClass, i) {
+  data.tags[e.data.tag].forEach( function(tagClass, i) {
     var color = 'rgba('+e.data.colors[i]._rgb.join(',')+')';
     chartStyle.innerText += '.show_'+e.data.tag+' .'+tagClass+' path{fill:'+color+'}';
   });
@@ -273,13 +317,13 @@ function switchPalette () {
 
 
 function registerOrigin () {
-  origin = tree.filter(function (el) {
+  data.origin = data.tree.filter(function (el) {
     return el.tag == 'INDI';
   })[originID.value];
 }
 
-function getAncestors (origin) {
-  var individuals = [origin];
+function getAncestors () {
+  var individuals = [data.origin];
   for (var gen = 0; gen <= generations.value; gen++)
   {
     var start = Math.floor(Math.pow(2, gen-1)),
@@ -310,7 +354,7 @@ function getParents (indiv)
   });
   if(indivFamilyID == undefined) return [];
 
-  var indivFamily = tree.find(function (el) {
+  var indivFamily = data.tree.find(function (el) {
      return el.pointer == indivFamilyID.data;
   });
   if(indivFamily == undefined) return [];
@@ -328,12 +372,12 @@ function getParents (indiv)
   // get parents
 
   if(parentA !== undefined) {
-    parents.push(tree.find(function (el) {
+    parents.push(data.tree.find(function (el) {
       return el.pointer == parentA.data;
     }));
   }
   if(parentB !== undefined) {
-    parents.push(tree.find(function (el) {
+    parents.push(data.tree.find(function (el) {
       return el.pointer == parentB.data;
     }));
   }
@@ -400,14 +444,14 @@ function parseIndividual (indiv) {
   return indiv; 
 }
 
-function registerTagClass (indiv, tag, data) {
-  data = data.split(/[, ]/g)[0];
-  var className = tag+cssnamify(data);
+function registerTagClass (indiv, tag, value) {
+  value = value.split(/[, ]/g)[0];
+  var className = tag+cssnamify(value);
   indiv.classes.push(className);
-  if (allTags[tag] === undefined)
-    allTags[tag] = [];
-  if (allTags[tag].indexOf(className) === -1)
-    allTags[tag].push(className);
+  if (data.tags[tag] === undefined)
+    data.tags[tag] = [];
+  if (data.tags[tag].indexOf(className) === -1)
+    data.tags[tag].push(className);
 }
 
 function getData (node, tag) {
@@ -476,16 +520,16 @@ function parseTextTemplate (str, indiv)
     if(truncate !== null) {
       switch (truncate[2]) {
         case '...':
-          text = text.trunc(truncnbr, false);
+          text = truncText(text, truncnbr, false);
           break;
         case '..':
-          text = text.truncWords(truncnbr, false, '...');
+          text = truncWords(text, truncnbr, false, '...');
           break;
         case '.':
-          text = text.truncWords(truncnbr, true, '.');
+          text = truncWords(text, truncnbr, true, '.');
           break;
         default:
-          text = text.truncWords(truncnbr, false, '');
+          text = truncWords(text, truncnbr, false, '');
           break;
       }
     }
@@ -551,7 +595,7 @@ function setDefault (obj, def) {
 function drawChart (individuals, options) {
 
   options = setDefault(options, {
-    rotation: Math.radians(90),
+    rotation: radians(90),
     genSpacing: 1,
     padding: 10,
     fontSize: 7

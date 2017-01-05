@@ -3,6 +3,7 @@
 Create a SVG genealogical fan chart from a GEDCOM file.
 
 [1]: https://rawgit.com/nliautaud/gedcom-svg-fanchart/master/index.html
+[2]: https://github.com/nliautaud/gedcom-svg-fanchart/archive/master.zip
 
 [Demo][1]|
 ----------
@@ -10,13 +11,21 @@ Create a SVG genealogical fan chart from a GEDCOM file.
 
 ## Usage
 
+[Download][2] the repository and open it with your web browser, or go to the [live version][1].
+
 Drop a GEDCOM file onto the page.
 
-Tested with GEDCOM exported from Gramps (https://gramps-project.org).
+## Saving & printing
+
+You can print the chart (to a real printer, to PDF...) using the *print* option of your modern web browser.
+
+You can save the page with its content by using the *File > Save web page as...* option of your web browser, usually with the shortcut ``Cmd+S``. The saved page will be a working version of the software and will contain the given GEDCOM data.
+
+The original file is accessing libraries listed below trough internet. If you need a local version, you can simply save it *without* dropping a GEDCOM file. The saved file, accompanied with its data folder, will be a clean, local version of the software. Note that the data folder name is browser-specific.
 
 ## Settings
 
-The chart is automaticaly redrawn when editing the following parameters.
+The chart is automaticaly updated when editing the following parameters.
 
 - **title** : dynamic text template for the chart title. Ex: ``Ascendants fan chart of SURN LAST on GENS generations``.
 - **content** : dynamic text template for the chart labels. Ex: ``SURN.1 LAST2, born in BYEAR``.
@@ -26,7 +35,7 @@ The chart is automaticaly redrawn when editing the following parameters.
 - **font size** : slices sizes and labels are adjusted accoding to the content size.
 - **padding** : space surrounding labels.
 - **generation spacing** : space between generation circles.
-- **color palette** : colorize the chart according to a specific data (need ``palette.js`` companion file).
+- **color palette** : colorize the chart according to a specific data.
 
 ## Dynamic text templates
 
@@ -48,13 +57,24 @@ SURN..1       John...
 SURN...1      J...
 ```
 
-## Editing & printing
+## Editing
 
-You can print the page (to a real printer, to PDF...) using the *print* option of your modern web browser.
+The chart style is extensively editable with CSS, as every slice is populated with useful CSS classes of form ``.TAGNAME_tagvalue``. Each line of text is displayed as a separate ``<text>`` element, with the different pieces of information surrounded by ``<tspan>``.
 
-The chart style is extensively editable with CSS, as every slice is populated with useful CSS classes of form ``.TAGNAME_tagvalue`` (genders, names, places...) .
+```
+<g class="slice GEN_5 SEX_f OCCU_astronaut SOUR_s0019 SOUR_s0032 NOTE_n0132 LAST_doe SURN_john SURN_alexander">
+	<path></path>
+	<text><tspan>John A.</tspan><tspan> </tspan><tspan>Doe</tspan></text>
+	<text><tspan>Asronaut</tspan></text>
+</g>
+```
 
-Each line of text is displayed as a separate ``<text>`` element, the different pieces of information being surrounded by ``<tspan>``.
+The dynamic coloring for example is done by attributing a distinct fill color to every class of a tag type, preceded by a trigger class :
+```
+.show_SURN .SURN_john path {fill: red}
+.show_SURN .SURN_paul path {fill: green}
+.show_OCCU .OCCU_astronaut path {fill: skyblue}
+```
 
 ## External libraries
 
@@ -63,3 +83,9 @@ Each line of text is displayed as a separate ``<text>`` element, the different p
 - SVG pan and zoom : https://github.com/ariutta/svg-pan-zoom
 - Textarea resizing : https://github.com/jackmoore/autosize
 - Colors palettes generation : https://github.com/medialab/iwanthue
+
+## Tests
+
+Tested with GEDCOM files exported from Gramps (https://gramps-project.org).
+
+Tested on desktop with latest chrome, firefox & safari.
