@@ -420,13 +420,15 @@ function registerBirthDeath (indiv, event) {
       places,
       placesKeys = ['COUNTR','STATE','DISTR','TOWN'];
   //date
-  var dtag = t + 'DATE';
-  indiv[dtag] = new Date(getValue(event, 'DATE'));
-  //year
-  var ytag = t + 'YEAR';
-  if(!indiv[dtag] || isNaN(indiv[dtag]))
-    indiv[ytag] = '';
-  else indiv[ytag] = indiv[dtag].getFullYear();
+  var datestr = getValue(event, 'DATE'),
+      date = parseDate(datestr);
+  indiv[t+'DATE'] = datestr;
+  if (date != '') {
+    registerTagClass(indiv, t+'DAY', date.getDate());
+    registerTagClass(indiv, t+'MON', date.getMonth()+1);
+    registerTagClass(indiv, t+'YEAR', date.getFullYear());
+    registerTagClass(indiv, t+'PRE', date.prefix);
+  }
   //place
   var ptag = t + 'PLAC';
   indiv[ptag] = getValue(event, 'PLAC');
@@ -487,6 +489,25 @@ function cssnamify(str) {
       });
   }
   return '_' + str;
+}
+
+function parseDate(inp) {
+  var date, str, prefix = '';
+  // remove ranges
+  str = inp.trim()
+    .replace(/(?:FROM|BET)\s*/,'')
+    .replace(/\s*(?:TO|AND).+/,'');
+  if(str.length == 0)
+    return '';
+  // extract additional info
+  str = str.split(/(ABT|CAL|EST|AFT|BEF)/);
+  if(str.length > 1) {
+    prefix = str[1].toLowerCase() + '.';
+    str = str[2];
+  } else str = str[0];
+  date = new Date(str);
+  date.prefix = prefix;
+  return date;
 }
 
 

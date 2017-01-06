@@ -44,34 +44,40 @@ The chart title and slices labels use text templates, where keywords in uppercas
 Any GEDCOM tag will be replaced by its corresponding data field, for example :
 
 ```
-SEX			M
-OCCU		Astronaut
+SEX         M
+OCCU        Astronaut
+...         ...
 ```
 
 The following keywords will be replaced too (and each birth `B` have a variant for death `D`) :
 
 ```
-LASTN		Doe
-SURNM   	John Alexander
+LAST        Doe
+SURN        John Alexander
 BYEAR       1930
-BPLAC		Lorentz Crater, Northwest limb, Bright side, Moon
-BCNTR		Moon
-BSTAT		Bright side
-BDSTR		Northwest limb
-BTOWN		Lorentz Crater
-BSOUR		NASA Bigest book, p14
-BSQUA		3 (birth source quality)
-ASQUA		7 (all sources quality)
+BMON        06
+BDAY        24
+BPRE        abt.
+BPLAC       Lorentz Crater, Northwest limb, Bright side, Moon
+BCNTR       Moon
+BSTAT       Bright side
+BDSTR       Northwest limb
+BTOWN       Lorentz Crater
+BSOUR       NASA Bigest book, p14
+BSQUA       3 (birth source quality)
+SQUA        7 (sources quality)
+GEN         1 (current generation)
+GENS        8 (number of generations)
 ```
 
 Values can be truncated by using numbers and dots :
 
 ```
-SURN          John Alexander
-SURN1         John
-SURN.1        John A.
-SURN..1       John...
-SURN...1      J...
+SURN        John Alexander
+SURN1       John
+SURN.1      John A.
+SURN..1     John...
+SURN...1    J...
 ```
 
 ## Editing
