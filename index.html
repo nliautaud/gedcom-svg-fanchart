@@ -98,8 +98,18 @@ importScripts('https://cdn.rawgit.com/gka/chroma.js/master/chroma.min.js');
 importScripts('https://cdn.rawgit.com/medialab/iwanthue/master/js/libs/chroma.palette-gen.js');
 
 self.addEventListener('message', function (e) {
-  var colors = paletteGenerator.generate(
-    e.data.nbr, // number of colors
+  var colors = [];
+  // color scale for numerical data
+  if(e.data.infos.isNum) {
+    var base = chroma( Math.random()*360, 0.8, 0.3, 'hsl' ),
+        colorgen = chroma.bezier(['white', base]);
+    e.data.infos.values.forEach(function (v) {
+      colors.push(colorgen(.4+v*.6));
+    });
+  }
+  // distinct colors for others
+  else colors = paletteGenerator.generate(
+    e.data.infos.classes.length, // number of colors
     function(color){ // This function filters valid colors
       var hcl = color.hcl();
       return hcl[0]>=0 && hcl[0]<=360
@@ -111,8 +121,6 @@ self.addEventListener('message', function (e) {
     false, // Ultra precision
     'Default' // Color distance type (colorblindness)
   );
-  // Sort colors by differenciation first
-  //colors = paletteGenerator.diffSort(colors, 'Default');
   postMessage( {tag:e.data.tag, colors:colors} );
 }, false);
 </script>
@@ -226,6 +234,7 @@ function parseFileContent (e) {
   data.indi = data.tree.filter(function (el) {
     return el.tag == 'INDI';
   }).map(parseIndividual);
+  ponderateTagsValues();
 
   createPalettes();
   registerOrigin();
@@ -286,7 +295,7 @@ function createPalettes () {
   chartStyle.innerText = '';
   paletteSelector.innerHTML = '<option value=""></option>';
   for (tag in data.tags) {
-    palette.postMessage({tag:tag, nbr:data.tags[tag].length});
+    palette.postMessage({tag:tag, infos:data.tags[tag]});
   }
 }
 function addPalette(e) {
@@ -296,7 +305,7 @@ function addPalette(e) {
     addPalette.enabled = true;
   }
   // add styles
-  data.tags[e.data.tag].forEach( function(tagClass, i) {
+  data.tags[e.data.tag].classes.forEach( function(tagClass, i) {
     var color = 'rgba('+e.data.colors[i]._rgb.join(',')+')';
     chartStyle.innerText += '.show_'+e.data.tag+' .'+tagClass+' path{fill:'+color+'}';
   });
@@ -375,7 +384,7 @@ function getParents (indiv)
     }));
   }
 
-  return parents.map(parseIndividual);
+  return parents;
 }
 
 function parseIndividual (indiv) {
@@ -456,14 +465,34 @@ function registerSource (indiv, source, prefix) {
 }
 function registerTagClass (indiv, tag, value, noattr) {
   if(!noattr) indiv[tag] = value;
-  if(value.split)
-    value = value.split(/[, ]/g)[0];
-  var className = tag+cssnamify(value);
+  var v = value;
+  if(v.split) v = v.split(/[, ]/g)[0];
+  var className = tag+cssnamify(v);
   indiv.classes.push(className);
-  if (data.tags[tag] === undefined)
-    data.tags[tag] = [];
-  if (data.tags[tag].indexOf(className) === -1)
-    data.tags[tag].push(className);
+  if (data.tags[tag] === undefined) {
+    data.tags[tag] = {
+      classes:[],
+      isNum: Number(parseFloat(value)) == value
+    };
+    if (data.tags[tag].isNum)
+      data.tags[tag].values = [];
+  }
+  if (data.tags[tag].classes.indexOf(className) === -1) {
+    data.tags[tag].classes.push(className);
+    if (data.tags[tag].isNum)
+      data.tags[tag].values.push(v);
+  }
+}
+function ponderateTagsValues () {
+  for (tagname in data.tags) {
+    var tag = data.tags[tagname];
+    if (!tag.isNum) continue;
+    tag.max = Math.max.apply(null, tag.values),
+    tag.min = Math.min.apply(null, tag.values);
+    tag.values = tag.values.map(function (n) {
+      return (n-tag.min)/tag.max;
+    });
+  }
 }
 
 function getData (node, tag) {
