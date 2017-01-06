@@ -27,11 +27,11 @@ The original file is accessing libraries listed below trough internet. If you ne
 
 The chart is automaticaly updated when editing the following parameters.
 
-- **title** : dynamic text template for the chart title. Ex: ``Ascendants fan chart of SURN LAST on GENS generations``.
-- **content** : dynamic text template for the chart labels. Ex: ``SURN.1 LAST2, born in BYEAR``.
+- **title** : dynamic text template for the chart title.
+- **content** : dynamic text template for the chart labels.
 - **generations** : number of ancestors generations to show in the chart.
 - **origin ID** : number of the GEDCOM individual to use as center of the chart.
-- **rotation** : each label is drawn in the most readable orientation according to the slice size and chart rotation.
+- **rotation** : label are drawn in the most readable orientation according to the slice size and chart rotation.
 - **font size** : slices sizes and labels are adjusted accoding to the content size.
 - **padding** : space surrounding labels.
 - **generation spacing** : space between generation circles.
@@ -41,14 +41,31 @@ The chart is automaticaly updated when editing the following parameters.
 
 The chart title and slices labels use text templates, where keywords in uppercase are dynamicaly replaced by corresponding values.
 
-- Any GEDCOM tag, ex. ``OCCU`` : corresponding data field
-- ``LAST`` / ``SURN`` : lastnames and surnames
-- ``BYEAR`` / ``DYEAR`` : years of birth and death
-- ``BPLAC`` (and ``BCOUNTR, BSTATE, BDISTR, BTOWN``) : place of birth (and country, state, district, town)
-- ``DPLAC`` (and ``DCOUNTR, DSTATE, DDISTR, DTOWN``) : place of death (and country, state, district, town)
-- ``GENS`` : number of displayed generations
+Any GEDCOM tag will be replaced by its corresponding data field, for example :
+
+```
+SEX			M
+OCCU		Astronaut
+```
+
+The following keywords will be replaced too (and each birth `B` have a variant for death `D`) :
+
+```
+LASTN		Doe
+SURNM   	John Alexander
+BYEAR       1930
+BPLAC		Lorentz Crater, Northwest limb, Bright side, Moon
+BCNTR		Moon
+BSTAT		Bright side
+BDSTR		Northwest limb
+BTOWN		Lorentz Crater
+BSOUR		NASA Bigest book, p14
+BSQUA		3 (birth source quality)
+ASQUA		7 (all sources quality)
+```
 
 Values can be truncated by using numbers and dots :
+
 ```
 SURN          John Alexander
 SURN1         John
