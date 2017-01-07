@@ -227,7 +227,8 @@ function retrieveContent () {
 }
 
 function parseFileContent (e) {
-  data.tree = parseGedcom.parse(e.target.result);
+  e = e.target.result.replace(/\r/g,'\r\n');
+  data.tree = parseGedcom.parse(e);
   if(!data.tree.length) return;
 
   data.tags = {};
