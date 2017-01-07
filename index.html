@@ -322,6 +322,7 @@ function switchPalette () {
 
 
 function registerOrigin () {
+  originID.value = Math.min(data.indi.length-1, originID.value);
   data.origin = data.indi[originID.value];
 }
 function getAncestors () {
