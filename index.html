@@ -31,8 +31,36 @@
     visibility: hidden;
   }
 
-  aside {
+  .colorLabelsGroup {
+    display: none;
     position: absolute;
+    flex-flow: column wrap;
+    padding: 0;
+    margin: 0;
+  }
+  .colorLabelsGroup.show {
+    display: flex;
+  }
+  .colorLabel {
+    display: none;
+    width: 20%;
+    max-width: 16em;
+    min-width: 12em;
+    padding: 0 1em;
+  }
+  .colorLabel.show {
+    display: block;
+  }
+  .colorLabel::before {
+    content: '';
+    padding: 0 .5em;
+    margin-right: .5em;
+  }
+
+  aside {
+    position: fixed;
+    top: 0; bottom: 0;
+    overflow: auto;
     display: flex;
     flex-flow: column;
     width: 12em;
@@ -47,6 +75,10 @@
     width: 100%;
     border: 1px solid #ddd;
     padding: .25em;
+  }
+  aside input[type=checkbox] {
+    width: auto;
+    margin-right: 1em;
   }
   aside label{
     padding: .5em 0;
@@ -63,10 +95,12 @@
     height: 100%;
     overflow: auto;
     margin-left: 12em;
+    position: relative;
   }
   svg {
     width: 100%;
     height: 100%;
+    opacity: 1;
   }
   @media print {
     aside {
@@ -100,16 +134,17 @@ importScripts('https://cdn.rawgit.com/medialab/iwanthue/master/js/libs/chroma.pa
 self.addEventListener('message', function (e) {
   var colors = [];
   // color scale for numerical data
-  if(e.data.infos.isNum) {
+  if(e.data.isNum) {
     var base = chroma( Math.random()*360, 0.8, 0.3, 'hsl' ),
         colorgen = chroma.bezier(['white', base]);
-    e.data.infos.values.forEach(function (v) {
-      colors.push(colorgen(.4+v*.6));
+    e.data.items.forEach(function (item) {
+      var v = (item.val-e.data.min)/(e.data.max-e.data.min);
+      colors.push(colorgen(.2+v*.8));
     });
   }
   // distinct colors for others
   else colors = paletteGenerator.generate(
-    e.data.infos.classes.length, // number of colors
+    e.data.items.length, // number of colors
     function(color){ // This function filters valid colors
       var hcl = color.hcl();
       return hcl[0]>=0 && hcl[0]<=360
@@ -121,7 +156,7 @@ self.addEventListener('message', function (e) {
     false, // Ultra precision
     'Default' // Color distance type (colorblindness)
   );
-  postMessage( {tag:e.data.tag, colors:colors} );
+  postMessage( {tag:e.data, colors:colors} );
 }, false);
 </script>
 <script type="application/json" id="dataStr"></script>
@@ -130,7 +165,8 @@ window.onload=function(){
 
 var data = {},
     main = document.getElementById('main'),
-    chartStyle = document.getElementById('chartStyle');
+    chartStyle = document.getElementById('chartStyle'),
+    chartLabels = document.getElementById('chartLabels');
 
 // palette embedded worker
 
@@ -157,36 +193,45 @@ window.addEventListener('drop', function(e) {
   reader.readAsText(f);
 }, false);
 
-// settings changes
+// settings
 
-var originID = document.getElementById('originID');
-originID.addEventListener('change', registerOrigin);
+var settings = {
+    generations : document.getElementById('generations'),
+    originID : document.getElementById('originID'),
+    rotation : document.getElementById('rotation'),
+    fontSize : document.getElementById('fontSize'),
+    txtSpace : document.getElementById('txtSpace'),
+    genSpace : document.getElementById('genSpace'),
+    palette  : document.getElementById('palette'),
+    labelNbr : document.getElementById('labelNbr'),
+    globalColors : document.getElementById('globalColors'),
+    title : document.getElementById('titleTemplate'),
+    text : document.getElementById('textTemplate'),
+};
+settings.originID.addEventListener('change', switchOrigin);
+settings.palette.addEventListener('change', switchPalette);
+settings.labelNbr.addEventListener('change', filterLabels);
+settings.globalColors.addEventListener('change', updatePalette);
 
-var generations = document.getElementById('generations');
-
-var fields = document.querySelectorAll('input');
-[].forEach.call(fields, function(el) {
+[].forEach.call(document.querySelectorAll('input.chartUpdate'), function(el) {
+  el.addEventListener('change', updateChart);
+});
+[].forEach.call(document.querySelectorAll('input'), function(el) {
   el.addEventListener('change', function () {
     updateTitle();
-    updateChart();
     el.setAttribute('value', el.value);
   });
 });
 
-var titleTemplate = document.getElementById('titleTemplate');
-titleTemplate.addEventListener('input', function (el) {
+settings.title.addEventListener('input', function (el) {
   updateTitle();
-  titleTemplate.innerHTML = titleTemplate.value;
+  settings.title.innerHTML = settings.title.value;
 });
-var textTemplate = document.getElementById('textTemplate');
-textTemplate.addEventListener('change', function (el) {
-  updateTexts();
+settings.text.addEventListener('change', function (el) {
+  updateIndivTexts();
   updateChart();
-  textTemplate.innerHTML = textTemplate.value;
+  settings.text.innerHTML = settings.text.value;
 });
-
-var paletteSelector = document.getElementById('paletteSelector');
-paletteSelector.addEventListener('change', switchPalette);
 
 autosize(document.getElementsByTagName('textarea'));
 
@@ -231,16 +276,16 @@ function parseFileContent (e) {
   data.tree = parseGedcom.parse(e);
   if(!data.tree.length) return;
 
-  data.tags = {};
+  data.tags = [];
   data.indi = data.tree.filter(function (el) {
     return el.tag == 'INDI';
   }).map(parseIndividual);
-  ponderateTagsValues();
+  processTags();
 
   createPalettes();
   registerOrigin();
   updateTitle();
-  updateTexts();
+  updateIndivTexts();
   updateChart();
 
   console.log(data);
@@ -248,12 +293,17 @@ function parseFileContent (e) {
 
 function updateChart() {
 
-  drawChart(getAncestors(), {
-    rotation: radians(Number(document.getElementById('rotation').value)),
-    fontSize: Number(document.getElementById('fontSize').value),
-    padding: Number(document.getElementById('padding').value),
-    genSpacing: Number(document.getElementById('genSpacing').value)
+  data.usedtags = [];
+  data.ancestors = getAncestors();
+
+  drawChart(data.ancestors, {
+    rotation: radians(Number(settings.rotation.value)),
+    fontSize: Number(settings.fontSize.value),
+    txtSpace: Number(settings.txtSpace.value),
+    genSpace: Number(settings.genSpace.value)
   });
+
+  filterLabels();
 
   document.body.classList.add('loaded');
 
@@ -269,11 +319,9 @@ function updateChart() {
   dataStr.innerText = JSON.stringify(data);
 }
 
+function updateIndivTexts () {
 
-
-function updateTexts () {
-
-  var lines = textTemplate.value
+  var lines = settings.text.value
     .split('\n')
     .filter(function (el, i) {
       return el.trim().length > 0;
@@ -287,48 +335,122 @@ function updateTexts () {
   });
 }
 function updateTitle () {
-  document.getElementById('title').innerHTML = parseTextTemplate(titleTemplate.value, data.origin).join(' ');
+  document.getElementById('title').innerHTML = parseTextTemplate(settings.title.value, data.origin).join(' ');
 }
 
 
 
 function createPalettes () {
-  chartStyle.innerText = '';
-  paletteSelector.innerHTML = '<option value=""></option>';
-  for (tag in data.tags) {
-    palette.postMessage({tag:tag, infos:data.tags[tag]});
+  chartLabels.innerHTML = '';
+  settings.palette.innerHTML = '<option value=""></option>';
+  data.tags.forEach( function(tag) {
+    if (tag.items.length < 2) return;
+    addLabelGroup(tag);
+    settings.palette.options[settings.palette.options.length] = new Option(tag.name, tag.name);
+  });
+}
+function updatePalette () {
+  var currtag = settings.palette.value;
+  main.className = '';
+  var tag = data.tags.find(function (el) {
+    return el.name == currtag;
+  });
+  if(!tag) return;
+
+  if (!settings.globalColors.checked) {
+    var fitems = tag.items.filter( function(item) {
+      return data.usedtags.indexOf(item.cls) !== -1;
+    });
+    tag = {name:tag.name, items:fitems, isNum:tag.isNum, min:tag.min, max:tag.max};
   }
+
+  if (tag.items.length < 2) return;
+  palette.postMessage(tag);
+}
+function paletteStyle (tag, colors) {
+  var style = document.getElementById('style_'+tag.name),
+      styleContent = '',
+      labels = '';
+
+  if(!style) {
+    style = document.createElement('style');
+    style.id = 'style_'+tag.name;
+    style.class = 'paletteStyle';
+    style.type = 'text/css';
+    document.head.appendChild(style);
+  } else style.innerText = '';
+
+  tag.items.forEach( function(item, i) {
+    var color = 'rgba('+colors[i]._rgb.join(',')+')';
+    // slice color
+    styleContent += '.show_'+tag.name+' .'+item.cls+' path{fill:'+color+'}';
+    // label square color
+    styleContent += '.colorLabel.'+item.cls+'::before{background:'+color+'}';
+  });
+
+  style.innerText = styleContent;
 }
 function addPalette(e) {
-  if (!addPalette.enabled) {
-    // reset styles and options
-    paletteSelector.disabled = '';
-    addPalette.enabled = true;
-  }
-  // add styles
-  data.tags[e.data.tag].classes.forEach( function(tagClass, i) {
-    var color = 'rgba('+e.data.colors[i]._rgb.join(',')+')';
-    chartStyle.innerText += '.show_'+e.data.tag+' .'+tagClass+' path{fill:'+color+'}';
-  });
-  // add option
-  paletteSelector.innerHTML += '<option value="'+e.data.tag+'">'+e.data.tag+'</option>';
+  paletteStyle(e.data.tag, e.data.colors);
+  main.className = 'show_'+settings.palette.value;
 }
 function switchPalette () {
-  var selectedTag = paletteSelector.options[paletteSelector.selectedIndex].value;
-  main.className = '';
-  main.classList.add('show_'+selectedTag);
+  updatePalette();
+  switchLabelGroup();
+}
+function addLabelGroup (tag) {
+  var labGroup = document.createElement('ul');
+  labGroup.className = 'colorLabelsGroup '+tag.name;
+  tag.items.forEach( function(item) {
+    labGroup.innerHTML += '<li class="colorLabel '+item.cls+'">'+item.val+'</li>'
+  });
+  chartLabels.appendChild(labGroup);
+}
+function switchLabelGroup () {
+  var labGroups = chartLabels.children;
+  [].forEach.call(labGroups, function(el, i) {
+    if (settings.palette.value && el.classList.contains(settings.palette.value))
+      el.classList.add('show');
+    else el.classList.remove('show');
+  });
+  filterLabels();
+}
+
+function filterLabels () {
+  if (!settings.palette.value) {
+    return;
+  }
+  var elements = [],
+      labels = chartLabels.querySelectorAll('.'+settings.palette.value+' .colorLabel'),
+      nbr = 0;
+
+  labels.forEach( function(el, index) {
+    var slicesNbr = main.querySelectorAll('g.slice.'+el.classList[1]).length;
+    if ( nbr < settings.labelNbr.value && slicesNbr ){
+      nbr++
+      el.classList.add('show');
+      el.style.order = -slicesNbr;
+      //el.innerText += '('+slicesNbr+')';
+    } else el.classList.remove('show');
+  });
 }
 
 
 
 
 function registerOrigin () {
-  originID.value = Math.min(data.indi.length-1, originID.value);
-  data.origin = data.indi[originID.value];
+  settings.originID.value = Math.min(data.indi.length-1, settings.originID.value);
+  data.origin = data.indi[settings.originID.value];
+}
+function switchOrigin () {
+  registerOrigin();
+  updateChart();
+  if(!settings.globalColors.checked)
+    updatePalette();
 }
 function getAncestors () {
   var individuals = [data.origin];
-  for (var gen = 0; gen <= generations.value; gen++)
+  for (var gen = 0; gen <= settings.generations.value; gen++)
   {
     var start = Math.floor(Math.pow(2, gen-1)),
         end = Math.pow(2, gen);
@@ -465,36 +587,42 @@ function registerSource (indiv, source, prefix) {
   registerTagClass(indiv, prefix+'SQUA', squality);
   indiv.SQUA += squality;
 }
-function registerTagClass (indiv, tag, value, noattr) {
-  if(!noattr) indiv[tag] = value;
+function registerTagClass (indiv, tagname, value, noattr) {
+  if(!noattr) indiv[tagname] = value;
   var v = value;
   if(v.split) v = v.split(/[, ]/g)[0];
-  var className = tag+cssnamify(v);
-  indiv.classes.push(className);
-  if (data.tags[tag] === undefined) {
-    data.tags[tag] = {
-      classes:[],
-      isNum: Number(parseFloat(value)) == value
-    };
-    if (data.tags[tag].isNum)
-      data.tags[tag].values = [];
+  var cls = tagname+cssnamify(v);
+  indiv.classes.push(cls);
+
+  var item,
+      newitem = {val: v, cls: cls, nbr: 1},
+      tag = data.tags.find(function (el) {
+        return el.name == tagname;
+      });
+  if (!tag) {
+    data.tags.push({ name:tagname, items:[newitem], isNum: Number(parseFloat(value)) == value });
+    return;
   }
-  if (data.tags[tag].classes.indexOf(className) === -1) {
-    data.tags[tag].classes.push(className);
-    if (data.tags[tag].isNum)
-      data.tags[tag].values.push(v);
-  }
+
+  item = tag.items.find(function (el) {
+    return el.cls == cls;
+  });
+  if (item) item.nbr++;
+  else tag.items.push(newitem);
 }
-function ponderateTagsValues () {
-  for (tagname in data.tags) {
-    var tag = data.tags[tagname];
-    if (!tag.isNum) continue;
-    tag.max = Math.max.apply(null, tag.values),
-    tag.min = Math.min.apply(null, tag.values);
-    tag.values = tag.values.map(function (n) {
-      return (n-tag.min)/tag.max;
+function processTags () {
+  data.tags.forEach( function(tag) {
+    // sort tag values by occurences
+    tag.items.sort(function (a, b) {
+      return b.nbr - a.nbr;
+    })
+    // compute min/max
+    if (!tag.isNum) return;
+    tag.items.forEach( function(item) {
+      if (!tag.max || item.val > tag.max) tag.max = item.val;
+      if (!tag.min || item.val < tag.min) tag.min = item.val;
     });
-  }
+  });
 }
 
 function getData (node, tag) {
@@ -556,7 +684,7 @@ function parseTextTemplate (str, indiv)
       var truncnbr = Number(truncate[3]);
     }
 
-    if(key == 'GENS') return generations.value;
+    if(key == 'GENS') return settings.generations.value;
 
     if(!indiv.hasOwnProperty(key))
       return '';
@@ -600,8 +728,8 @@ function maxTextsSizes (indivs, start, end, options) {
     });
   }
   return {
-    width: maxLength * (options.fontSize*.35) + options.padding,
-    height: indivs[0].texts.length * options.fontSize + options.padding
+    width: maxLength * (options.fontSize*.35) + options.txtSpace,
+    height: indivs[0].texts.length * options.fontSize + options.txtSpace
   };
 }
 
@@ -644,8 +772,8 @@ function drawChart (individuals, options) {
 
   options = setDefault(options, {
     rotation: radians(90),
-    genSpacing: 1,
-    padding: 10,
+    genSpace: 1,
+    txtSpace: 10,
     fontSize: 7
   });
 
@@ -668,7 +796,7 @@ function drawChart (individuals, options) {
   fan = view.g().attr({id: 'fan'});
 
   var id = 0;
-  for(var gen=1; gen<=generations.value; gen++)
+  for(var gen=1; gen<=settings.generations.value; gen++)
   {
     var isHorizontal = gen < 4;
     var arcsNbr = Math.pow(2, gen);
@@ -707,6 +835,7 @@ function drawChart (individuals, options) {
         continue;
       }
       slice.addClass(indiv.classes.join(' '));
+      data.usedtags.push.apply(data.usedtags, indiv.classes);
 
       // texts
 
@@ -736,7 +865,7 @@ function drawChart (individuals, options) {
              .textPath.attr({startOffset: '50%'});
       });
     }
-    radius += thickness + options.genSpacing;
+    radius += thickness + options.genSpace;
   }
 }
 
@@ -747,19 +876,21 @@ function drawChart (individuals, options) {
 <div class="infos">Drop a GEDCOM file</div>
 <aside class="controls">
   <label>title<textarea id="titleTemplate">Ascendants fan chart of SURN LAST<br>GENS generations</textarea></label>
-  <label>generations<input type="number" id="generations" min="1" max="10" value="6"></label>
+  <label>generations<input type="number" id="generations" class="chartUpdate" min="1" max="10" value="6"></label>
   <label>origin ID<input type="number" id="originID" min="0" max="9999" value="0"></label>
   <label>content<textarea id="textTemplate">SURN.1 LAST2
 BYEAR - DYEAR
 OCCU</textarea></label>
-  <label>rotation<input type="number" id="rotation" min="0" max="360" step="45" value="90"></label>
-  <label>fontSize<input type="number" id="fontSize" min="5" max="20" step="1" value="7"></label>
-  <label>padding<input type="number" id="padding" min="0" max="50" step="10" value="10"></label>
-  <label>generation spacing<input type="number" id="genSpacing" min="0" max="20" step="1" value="1"></label>
-  <label>color palette<select id="paletteSelector" disabled="disabled"></select></label>
+  <label>rotation<input type="number" id="rotation" class="chartUpdate" min="0" max="360" step="45" value="90"></label>
+  <label>font size<input type="number" id="fontSize" class="chartUpdate" min="5" max="20" step="1" value="7"></label>
+  <label>padding<input type="number" id="txtSpace" class="chartUpdate" min="0" max="50" step="10" value="10"></label>
+  <label>generation spacing<input type="number" id="genSpace" class="chartUpdate" min="0" max="20" step="1" value="1"></label>
+  <label>color palette<select id="palette"></select></label>
+  <label>labels number<input type="number" id="labelNbr" min="0" value="10"></label>
+  <label><input type="checkbox" id="globalColors" checked>global coloring</label>
 </aside>
 <main id="main">
   <h3 id="title"></h3>
-  <style id="chartStyle"></style>
+  <div id="chartLabels"></div>
   <svg id="chart"><g id="viewport"></g></svg>
 </main>

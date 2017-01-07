@@ -36,6 +36,8 @@ The chart is automaticaly updated when editing the following parameters.
 - **padding** : space surrounding labels.
 - **generation spacing** : space between generation circles.
 - **color palette** : colorize the chart according to a specific data.
+- **labels number** : number of color labels to display
+- **global coloring** : when checked, larges palettes are generated for each data variants. All the 'Joseph' of each chart will have the same color, but a high number of variants induce less distinct colors. By disabling this option, small palettes of more distinct colors are generated for each chart.
 
 ## Dynamic text templates
 
@@ -105,7 +107,7 @@ The dynamic coloring for example is done by attributing a distinct fill color to
 - SVG drawing : https://github.com/adobe-webplatform/Snap.svg
 - SVG pan and zoom : https://github.com/ariutta/svg-pan-zoom
 - Textarea resizing : https://github.com/jackmoore/autosize
-- Colors palettes generation : https://github.com/medialab/iwanthue
+- Distinct colors generation : https://github.com/medialab/iwanthue
 
 ## Tests
 
