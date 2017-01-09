@@ -382,7 +382,7 @@ function updatePalette () {
     tag = {name:tag.name, items:fitems, isNum:tag.isNum, min:tag.min, max:tag.max};
   }
 
-  if (tag.items.length < 2) return;
+  if (tag.items.length < 1) return;
   palette.postMessage(tag);
 }
 function paletteStyle (tag, colors) {
@@ -536,7 +536,7 @@ function parseIndividual (indiv) {
       case 'DEAT': registerBirthDeath(indiv, event); break;
       default: registerTagClass(indiv, event.tag, event.data); break;
     }
-    registerAge(indiv, event);
+    if(event.tag !== 'BIRT') registerAge(indiv, event);
   });
   registerTagClass(indiv, 'SQUA', indiv.SQUA);
   registerTagClass(indiv, 'SQUA', indiv.SQUA);
@@ -671,14 +671,15 @@ function translateTagKey (tag) {
           SURN: 'Surnames', LAST: 'Lastnames',
           DAY: 'day', MON: 'month', YEAR: 'year', PRE: 'date type',
           COUNTR: 'country', STATE: 'state', DISTR: 'district', TOWN: 'town',
-          SOUR: 'Source', SQUA: 'Sources quality',
-          NOTE: 'Note',
-          BIRT: 'birth', DEAT: 'death', BURI: 'burial',
-          IMMI: 'immigration', CENS: 'cencus', _MILT: 'military',
-          RESI: 'residence',
+          SOUR: 'Source', SQUA: 'Sources quality', NOTE: 'Note',
+          BIRT: 'birth', DEAT: 'death', BURI: 'Burial', BAPM: 'Baptism',
+          IMMI: 'Immigration', NATU : 'Naturalisation', ADOP: 'Adoption',
+          CENS: 'Cencus', _MILT: 'Military',
+          RESI: 'Residence', PROP: 'Property',
         }
       },
-      prefix = tag.match(/^([BDI]|AG)(.+)/),
+      noprefix = ['IMMI','BURI','BAPL','BAPM','BARM','BASM','BLES','DIV','DIF'].indexOf(tag) !== -1,
+      prefix = noprefix ? null : tag.match(/^([BDI]|AG)(.+)/),
       key = prefix ? prefix[2] : tag;
   if(!trans.tags[key]) return tag;
   if (!prefix) return trans.tags[tag];
