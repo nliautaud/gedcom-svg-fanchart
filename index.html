@@ -134,11 +134,18 @@ importScripts('https://cdn.rawgit.com/medialab/iwanthue/master/js/libs/chroma.pa
 self.addEventListener('message', function (e) {
   var colors = [];
   // color scale for numerical data
-  if(e.data.isNum) {
-    var base = chroma( Math.random()*360, 0.8, 0.3, 'hsl' ),
-        colorgen = chroma.bezier(['white', base]);
-    e.data.items.forEach(function (item) {
-      var v = (item.val-e.data.min)/(e.data.max-e.data.min);
+  var isNum = Number(parseFloat(e.data.items[0].val)) == e.data.items[0].val;
+  if(isNum) {
+    var base = chroma( Math.random()*360, 0.8, 0.5, 'hsl' ),
+        colorgen = chroma.bezier(['white', base]),
+        min, max, minimax;
+    e.data.items.forEach( function(item) {
+      if (!max || item.val > max) max = item.val;
+      if (!min || item.val < min) min = item.val;
+    });
+    minimax = max-min;
+    e.data.items.forEach(function (item, i) {
+      var v = (item.val - min) / minimax;
       colors.push(colorgen(.2+v*.8));
     });
   }
@@ -291,7 +298,6 @@ function parseFileContent (e) {
   data.indi = data.tree.filter(function (el) {
     return el.tag == 'INDI';
   }).map(parseIndividual);
-  processTags();
 
   createPalettes();
   registerOrigin();
@@ -379,7 +385,7 @@ function updatePalette () {
     var fitems = tag.items.filter( function(item) {
       return data.usedtags.indexOf(item.cls) !== -1;
     });
-    tag = {name:tag.name, items:fitems, isNum:tag.isNum, min:tag.min, max:tag.max};
+    tag = {name:tag.name, items:fitems};
   }
 
   if (tag.items.length < 1) return;
@@ -641,31 +647,18 @@ function registerTagClass (indiv, tagname, value, noattr) {
         return el.name == tagname;
       });
   if (!tag) {
-    data.tags.push({ name:tagname, items:[newitem], isNum: Number(parseFloat(value)) == value });
+    data.tags.push({
+      name: tagname,
+      title: translateTagKey(tagname),
+      items: [newitem]
+    });
     return;
   }
-
   item = tag.items.find(function (el) {
     return el.cls == cls;
   });
   if (item) item.nbr++;
   else tag.items.push(newitem);
-}
-function processTags () {
-  data.tags.forEach( function(tag) {
-    // translate
-    tag.title = translateTagKey(tag.name);
-    // sort tag values by occurences
-    tag.items.sort(function (a, b) {
-      return b.nbr - a.nbr;
-    });
-    // compute min/max
-    if (!tag.isNum) return;
-    tag.items.forEach( function(item) {
-      if (!tag.max || item.val > tag.max) tag.max = item.val;
-      if (!tag.min || item.val < tag.min) tag.min = item.val;
-    });
-  });
 }
 function translateTagKey (tag) {
   var trans = {
