@@ -589,8 +589,12 @@ function registerBirthDeath (indiv, event) {
     registerTagClass(indiv, t+'MON', date.getMonth()+1);
     registerTagClass(indiv, t+'YEAR', date.getFullYear());
     registerTagClass(indiv, t+'PRE', date.prefix);
+    indiv[t+'DATEobj'] = date;
+    // decade & century
+    var year = date.getFullYear().toString();
+    registerTagClass(indiv, t+'DEC', year.slice(0,3)+'0');
+    registerTagClass(indiv, t+'CEN', year.slice(0,2)+'00');
   }
-  indiv[t+'DATEobj'] = date;
   //place
   var ptag = t + 'PLAC';
   indiv[ptag] = getValue(event, 'PLAC');
@@ -670,6 +674,7 @@ function translateTagKey (tag) {
           SEX: 'Genre', OCCU: 'Profession',
           SURN: 'Surnames', LAST: 'Lastnames',
           DAY: 'day', MON: 'month', YEAR: 'year', PRE: 'date type',
+          DEC: 'decade', CEN: 'century',
           COUNTR: 'country', STATE: 'state', DISTR: 'district', TOWN: 'town',
           SOUR: 'Source', SQUA: 'Sources quality', NOTE: 'Note',
           BIRT: 'birth', DEAT: 'death', BURI: 'Burial', BAPM: 'Baptism',

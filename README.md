@@ -51,15 +51,17 @@ OCCU        Astronaut
 ...         ...
 ```
 
-The following keywords are replaced too (and each birth `B` have a variant for death `D`) :
+The following keywords are replaced too (and each one started with `B` for birth exists with `D` for death) :
 
 ```
 LAST        Doe
 SURN        John Alexander
-BYEAR       1930
+BYEAR       1936
 BMON        06
 BDAY        24
 BPRE        abt.
+BDEC        1930
+BCEN        1900
 BPLAC       Lorentz Crater, Northwest limb, Bright side, Moon
 BCNTR       Moon
 BSTAT       Bright side
@@ -68,7 +70,6 @@ BTOWN       Lorentz Crater
 BSOUR       NASA Bigest book, p14
 BSQUA       3 (birth source quality)
 SQUA        7 (sources quality)
-GEN         1 (current generation)
 GENS        8 (number of generations)
 ```
 
