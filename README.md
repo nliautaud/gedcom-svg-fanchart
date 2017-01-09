@@ -36,8 +36,8 @@ The chart is automaticaly updated when editing the following parameters.
 - **padding** : space surrounding labels.
 - **generation spacing** : space between generation circles.
 - **color palette** : colorize the chart according to a specific data.
-- **labels number** : number of color labels to display
-- **global coloring** : when checked, larges palettes are generated for each data variants. All the 'Joseph' of each chart will have the same color, but a high number of variants induce less distinct colors. By disabling this option, small palettes of more distinct colors are generated for each chart.
+- **labels number** : number of color labels to display.
+- **global coloring** : generate large palettes with every variants or small ones for each chart.
 
 ## Dynamic text templates
 
@@ -81,6 +81,22 @@ SURN.1      John A.
 SURN..1     John...
 SURN...1    J...
 ```
+
+## Color palettes and legends
+
+The chart can be dynamically colored according to each data, by using the *color palette* drop-down.
+Each existing variants will be given a distinct color.
+
+Gradients are generated for numerical values (ex. dates, sources qualities...), and distinct colors for the others (ex. names, places...). 
+
+**Global coloring**  
+By default palettes are generated once, with a distinct color for each existing data variant, even for the ones not currently on the chart. Palettes are thus not recomputed when navigating, and same values will have the same color accross charts. But the more variants there are, the more chances there will be of similar colors, as the colors are not optimized for the current chart.
+By disabling the *global coloring* option, color palettes are specifically generated for the values of the current chart.
+
+**Legend**  
+The chart legend list the colors and their corresponding values, sorted by occurences.
+The maximum number of legend labels can be changed in the settings.
+The legend title and labels are directly editables, and will retain their new value accross charts.
 
 ## Editing
 

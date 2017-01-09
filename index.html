@@ -13,6 +13,9 @@
     height: 100%;
     margin: 0;
   }
+  ul {
+    padding: 0;
+  }
 
   .infos {
     position: absolute;
@@ -31,27 +34,24 @@
     visibility: hidden;
   }
 
-  .colorLabelsGroup {
+  .legend {
     display: none;
     position: absolute;
     flex-flow: column wrap;
-    padding: 0;
-    margin: 0;
+    margin: 0 0 0 3em;
   }
-  .colorLabelsGroup.show {
+  .legend.show {
     display: flex;
   }
-  .colorLabel {
+  .legend_label {
     display: none;
-    width: 20%;
-    max-width: 16em;
     min-width: 12em;
     padding: 0 1em;
   }
-  .colorLabel.show {
+  .legend_label.show {
     display: block;
   }
-  .colorLabel::before {
+  .legend_label::before {
     content: '';
     padding: 0 .5em;
     margin-right: .5em;
@@ -166,7 +166,7 @@ window.onload=function(){
 var data = {},
     main = document.getElementById('main'),
     chartStyle = document.getElementById('chartStyle'),
-    chartLabels = document.getElementById('chartLabels');
+    chartLegend = document.getElementById('chartLegend');
 
 
 
@@ -359,13 +359,13 @@ palette.addEventListener('message', addPalette, false);
 
 function createPalettes () {
   settings.palette.innerHTML = '<option value=""></option>';
-  var labelGroups = '';
+  var legends = '';
   data.tags.forEach( function(tag) {
     if (tag.items.length < 2) return;
-    labelGroups += labelGroup(tag);
-    settings.palette.options[settings.palette.options.length] = new Option(tag.name, tag.name);
+    legends += tagLegend(tag);
+    settings.palette.options[settings.palette.options.length] = new Option(tag.title, tag.name);
   });
-  chartLabels.innerHTML = labelGroups;
+  chartLegend.innerHTML = legends;
 }
 function updatePalette () {
   var currtag = settings.palette.value;
@@ -403,7 +403,7 @@ function paletteStyle (tag, colors) {
     // slice color
     styleContent += '.show_'+tag.name+' .'+item.cls+' path{fill:'+color+'}';
     // label square color
-    styleContent += '.colorLabel.'+item.cls+'::before{background:'+color+'}';
+    styleContent += '.legend_label.'+item.cls+'::before{background:'+color+'}';
   });
 
   style.innerText = styleContent;
@@ -414,17 +414,18 @@ function addPalette(e) {
 }
 function switchPalette () {
   updatePalette();
-  switchLabelGroup();
+  updateLegend();
 }
-function labelGroup (tag) {
-  var labGroup = '<ul class="colorLabelsGroup '+tag.name+'">';
+function tagLegend (tag) {
+  var labGroup = '<div class="legend '+tag.name+'">';
+  labGroup += '<header contenteditable>'+tag.title+'</header><ul>';
   tag.items.forEach( function(item) {
-    labGroup += '<li class="colorLabel '+item.cls+'">'+item.val+'</li>';
+    labGroup += '<li class="legend_label '+item.cls+'" contenteditable>'+item.val+'</li>';
   });
-  return labGroup + '</ul>';
+  return labGroup + '</ul></div>';
 }
-function switchLabelGroup () {
-  var labGroups = chartLabels.children;
+function updateLegend () {
+  var labGroups = chartLegend.children;
   [].forEach.call(labGroups, function(el, i) {
     if (settings.palette.value && el.classList.contains(settings.palette.value))
       el.classList.add('show');
@@ -438,7 +439,7 @@ function filterLabels () {
     return;
   }
   var elements = [],
-      labels = chartLabels.querySelectorAll('.'+settings.palette.value+' .colorLabel'),
+      labels = chartLegend.querySelectorAll('.'+settings.palette.value+' .legend_label'),
       nbr = 0;
 
   labels.forEach( function(el, index) {
@@ -641,6 +642,8 @@ function registerTagClass (indiv, tagname, value, noattr) {
 }
 function processTags () {
   data.tags.forEach( function(tag) {
+    // translate
+    tag.title = translateTagKey(tag.name);
     // sort tag values by occurences
     tag.items.sort(function (a, b) {
       return b.nbr - a.nbr;
@@ -652,6 +655,25 @@ function processTags () {
       if (!tag.min || item.val < tag.min) tag.min = item.val;
     });
   });
+}
+function translateTagKey (tag) {
+  var t = tag.replace(/^[BDI]/, ''),
+      trans = {
+        evts: { B: 'Birth %', D: 'Death %', I: 'Individual %' },
+        tags: {
+          SEX: 'Genre', OCCU: 'Profession',
+          SURN: 'Surnames', LAST: 'Lastnames',
+          DAY: 'day', MON: 'month', YEAR: 'year', PRE: 'date type',
+          COUNTR: 'country', STATE: 'state', DISTR: 'district', TOWN: 'town',
+          SOUR: 'Source', SQUA: 'Sources quality',
+          NOTE: 'Note',
+        }
+      },
+      nocut = ['BAPL','BAPM','BARM','BASM','BIRT','BLES','BLOB','DATA','DATE','DEAT','DESC','DESI','DEST','DIV','DIVF','DSCR','IMMI','IDNO','INDI'],
+      tagval = trans.tags[t],
+      event = trans.evts[tag[0]],
+      val = (tagval && event && !~nocut.indexOf(tag)) ? event.replace(/%/, tagval) : tagval;
+  return tagval ? val : tag;
 }
 
 function getData (node, tag) {
@@ -909,11 +931,11 @@ OCCU</textarea></label>
   <label>padding<input type="number" id="txtSpace" class="chartUpdate" min="0" max="50" step="10" value="10"></label>
   <label>generation spacing<input type="number" id="genSpace" class="chartUpdate" min="0" max="20" step="1" value="1"></label>
   <label>color palette<select id="palette"></select></label>
-  <label>labels number<input type="number" id="labelNbr" min="0" value="10"></label>
+  <label>legend labels<input type="number" id="labelNbr" min="0" value="10"></label>
   <label><input type="checkbox" id="globalColors" checked>global coloring</label>
 </aside>
 <main id="main">
   <h3 id="title"></h3>
-  <div id="chartLabels"></div>
+  <div id="chartLegend"></div>
   <svg id="chart"><g id="viewport"></g></svg>
 </main>
