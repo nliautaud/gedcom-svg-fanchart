@@ -168,32 +168,13 @@ var data = {},
     chartStyle = document.getElementById('chartStyle'),
     chartLabels = document.getElementById('chartLabels');
 
-// palette embedded worker
 
-var blob = new Blob([
-      document.querySelector('#paletteWorker').textContent
-    ], { type: "text/javascript" })
-var palette = new Worker(window.URL.createObjectURL(blob));
-palette.addEventListener('message', addPalette, false);
 
-// file drop
+/**
+ * SETTINGS
+ */
 
-window.addEventListener('dragover',function(e){
-  e = e || event;
-  e.preventDefault();
-},false);
-window.addEventListener('drop', function(e) {
-  e = e || event;
-  e.stopPropagation();
-  e.preventDefault();
-  var f = e.dataTransfer.files[0],
-      reader = new FileReader();
 
-  reader.onload = parseFileContent;
-  reader.readAsText(f);
-}, false);
-
-// settings
 
 var settings = {
     generations : document.getElementById('generations'),
@@ -235,20 +216,20 @@ settings.text.addEventListener('change', function (el) {
 
 autosize(document.getElementsByTagName('textarea'));
 
-// retrieve saved data
 
-var dataStr = document.getElementById('dataStr');
-retrieveContent();
 
-// helpers
+/**
+ * HELPERS
+ */
+
+
 
 function truncText ( str, n, useWordBoundary ){
   var isTooLong = str.length > n,
       s_ = isTooLong ? str.substr(0,n-1) : str;
   s_ = (useWordBoundary && isTooLong) ? s_.substr(0,s_.lastIndexOf(' ')) : s_;
   return  isTooLong ? s_ + '...' : s_;
-};
-
+}
 function truncWords ( str, n, showFirstLetter, sep ){
   var splitted = str.split(' '),
       out = str;
@@ -258,13 +239,43 @@ function truncWords ( str, n, showFirstLetter, sep ){
     out += sep;
   }
   return out;
-};
-
+}
 function radians (degrees) {
   return degrees * Math.PI / 180;
-};
+}
+function setDefault (obj, def) {
+  for (var key in obj) {
+    if(obj[key] === undefined && def[key] !== undefined)
+      obj[key] = def[key];
+  }
+  return obj;
+}
 
-// main
+
+
+/**
+ * MAIN
+ */
+
+
+
+var dataStr = document.getElementById('dataStr');
+retrieveContent();
+
+window.addEventListener('dragover',function(e){
+  e = e || event;
+  e.preventDefault();
+},false);
+window.addEventListener('drop', function(e) {
+  e = e || event;
+  e.stopPropagation();
+  e.preventDefault();
+  var f = e.dataTransfer.files[0],
+      reader = new FileReader();
+
+  reader.onload = parseFileContent;
+  reader.readAsText(f);
+}, false);
 
 function retrieveContent () {
   if(!dataStr.innerText.length) return;
@@ -286,15 +297,27 @@ function parseFileContent (e) {
   registerOrigin();
   updateTitle();
   updateIndivTexts();
+  updateAncestors();
   updateChart();
 
   console.log(data);
 }
 
+function registerOrigin () {
+  settings.originID.value = Math.min(data.indi.length-1, settings.originID.value);
+  data.origin = data.indi[settings.originID.value];
+}
+function switchOrigin () {
+  registerOrigin();
+  updateAncestors();
+  updateChart();
+  if(!settings.globalColors.checked)
+    updatePalette();
+}
+
 function updateChart() {
 
   data.usedtags = [];
-  data.ancestors = getAncestors();
 
   drawChart(data.ancestors, {
     rotation: radians(Number(settings.rotation.value)),
@@ -319,35 +342,30 @@ function updateChart() {
   dataStr.innerText = JSON.stringify(data);
 }
 
-function updateIndivTexts () {
 
-  var lines = settings.text.value
-    .split('\n')
-    .filter(function (el, i) {
-      return el.trim().length > 0;
-    });
 
-  data.indi.forEach( function(el) {
-    el.texts = [];
-    for (var i = 0; i < lines.length; i++) {
-      el.texts.push(parseTextTemplate(lines[i], el));
-    }
-  });
-}
-function updateTitle () {
-  document.getElementById('title').innerHTML = parseTextTemplate(settings.title.value, data.origin).join(' ');
-}
+/**
+ * PALETTES
+ */
 
+
+
+var blob = new Blob([
+      document.querySelector('#paletteWorker').textContent
+    ], { type: "text/javascript" });
+var palette = new Worker(window.URL.createObjectURL(blob));
+palette.addEventListener('message', addPalette, false);
 
 
 function createPalettes () {
-  chartLabels.innerHTML = '';
   settings.palette.innerHTML = '<option value=""></option>';
+  var labelGroups = '';
   data.tags.forEach( function(tag) {
     if (tag.items.length < 2) return;
-    addLabelGroup(tag);
+    labelGroups += labelGroup(tag);
     settings.palette.options[settings.palette.options.length] = new Option(tag.name, tag.name);
   });
+  chartLabels.innerHTML = labelGroups;
 }
 function updatePalette () {
   var currtag = settings.palette.value;
@@ -398,13 +416,12 @@ function switchPalette () {
   updatePalette();
   switchLabelGroup();
 }
-function addLabelGroup (tag) {
-  var labGroup = document.createElement('ul');
-  labGroup.className = 'colorLabelsGroup '+tag.name;
+function labelGroup (tag) {
+  var labGroup = '<ul class="colorLabelsGroup '+tag.name+'">';
   tag.items.forEach( function(item) {
-    labGroup.innerHTML += '<li class="colorLabel '+item.cls+'">'+item.val+'</li>'
+    labGroup += '<li class="colorLabel '+item.cls+'">'+item.val+'</li>';
   });
-  chartLabels.appendChild(labGroup);
+  return labGroup + '</ul>';
 }
 function switchLabelGroup () {
   var labGroups = chartLabels.children;
@@ -427,7 +444,7 @@ function filterLabels () {
   labels.forEach( function(el, index) {
     var slicesNbr = main.querySelectorAll('g.slice.'+el.classList[1]).length;
     if ( nbr < settings.labelNbr.value && slicesNbr ){
-      nbr++
+      nbr++;
       el.classList.add('show');
       el.style.order = -slicesNbr;
       //el.innerText += '('+slicesNbr+')';
@@ -437,19 +454,14 @@ function filterLabels () {
 
 
 
+/**
+ * TREE PROCESSING
+ */
 
-function registerOrigin () {
-  settings.originID.value = Math.min(data.indi.length-1, settings.originID.value);
-  data.origin = data.indi[settings.originID.value];
-}
-function switchOrigin () {
-  registerOrigin();
-  updateChart();
-  if(!settings.globalColors.checked)
-    updatePalette();
-}
-function getAncestors () {
-  var individuals = [data.origin];
+
+
+function updateAncestors () {
+  data.ancestors = [data.origin];
   for (var gen = 0; gen <= settings.generations.value; gen++)
   {
     var start = Math.floor(Math.pow(2, gen-1)),
@@ -457,33 +469,32 @@ function getAncestors () {
 
     for (var i = start; i < end; i++)
     {
-      var parents = getParents(individuals[i]);
-      if(parents.length == 0) {
-        individuals.push({});
-        individuals.push({});
+      var parents = getParents(data.ancestors[i]);
+      if(!parents.length) {
+        data.ancestors.push({});
+        data.ancestors.push({});
       } else {
-        individuals.push(parents[0]);
-        individuals.push(parents[1]);
+        data.ancestors.push(parents[0]);
+        data.ancestors.push(parents[1]);
       }
     }
   }
-  return individuals;
 }
 function getParents (indiv)
 {
-  if(indiv == undefined || indiv.tree == undefined) return [];
+  if(indiv === undefined || indiv.tree === undefined) return [];
 
   // find family where indiv is child
 
   var indivFamilyID = indiv.tree.find(function (el) {
      return el.tag == 'FAMC';
   });
-  if(indivFamilyID == undefined) return [];
+  if(indivFamilyID === undefined) return [];
 
   var indivFamily = data.tree.find(function (el) {
      return el.pointer == indivFamilyID.data;
   });
-  if(indivFamily == undefined) return [];
+  if(indivFamily === undefined) return [];
 
   // get parents IDs of that family
 
@@ -527,6 +538,24 @@ function parseIndividual (indiv) {
 
   return indiv;
 }
+function updateIndivTexts () {
+
+  var lines = settings.text.value
+    .split('\n')
+    .filter(function (el, i) {
+      return el.trim().length > 0;
+    });
+
+  data.indi.forEach( function(el) {
+    el.texts = [];
+    for (var i = 0; i < lines.length; i++) {
+      el.texts.push(parseTextTemplate(lines[i], el));
+    }
+  });
+}
+function updateTitle () {
+  document.getElementById('title').innerHTML = parseTextTemplate(settings.title.value, data.origin).join(' ');
+}
 function registerGeneric (indiv, event) {
   var exclude = ['NAME', 'FAMC', 'FAMS', 'BIRT', 'DEAT', 'EVEN', 'CHAN'];
   if (exclude.indexOf(event.tag) != -1)
@@ -556,7 +585,7 @@ function registerBirthDeath (indiv, event) {
   var datestr = getValue(event, 'DATE'),
       date = parseDate(datestr);
   indiv[t+'DATE'] = datestr;
-  if (date != '') {
+  if (date !== '') {
     registerTagClass(indiv, t+'DAY', date.getDate());
     registerTagClass(indiv, t+'MON', date.getMonth()+1);
     registerTagClass(indiv, t+'YEAR', date.getFullYear());
@@ -615,7 +644,7 @@ function processTags () {
     // sort tag values by occurences
     tag.items.sort(function (a, b) {
       return b.nbr - a.nbr;
-    })
+    });
     // compute min/max
     if (!tag.isNum) return;
     tag.items.forEach( function(item) {
@@ -633,7 +662,7 @@ function getData (node, tag) {
 }
 function getValue (node, tag) {
   var result = getData(node, tag);
-  if(result == undefined) return '';
+  if(result === undefined) return '';
   return result.data;
 }
 function cssnamify(str) {
@@ -656,7 +685,7 @@ function parseDate(inp) {
   str = inp.trim()
     .replace(/(?:FROM|BET)\s*/,'')
     .replace(/\s*(?:TO|AND).+/,'');
-  if(str.length == 0)
+  if(!str.length)
     return '';
   // extract additional info
   str = str.split(/(ABT|CAL|EST|AFT|BEF)/);
@@ -678,10 +707,11 @@ function parseTextTemplate (str, indiv)
     if(!key.match(keyreg))
       return key;
 
-    var truncate = /([A-Z]{3,})(\.*)(\d+)/g.exec(key);
+    var truncnbr,
+        truncate = /([A-Z]{3,})(\.*)(\d+)/g.exec(key);
     if(truncate !== null) {
       key = truncate[1];
-      var truncnbr = Number(truncate[3]);
+      truncnbr = Number(truncate[3]);
     }
 
     if(key == 'GENS') return settings.generations.value;
@@ -695,18 +725,10 @@ function parseTextTemplate (str, indiv)
 
     if(truncate !== null) {
       switch (truncate[2]) {
-        case '...':
-          text = truncText(text, truncnbr, false);
-          break;
-        case '..':
-          text = truncWords(text, truncnbr, false, '...');
-          break;
-        case '.':
-          text = truncWords(text, truncnbr, true, '.');
-          break;
-        default:
-          text = truncWords(text, truncnbr, false, '');
-          break;
+        case '...': text = truncText(text, truncnbr, false); break;
+        case '..': text = truncWords(text, truncnbr, false, '...'); break;
+        case '.': text = truncWords(text, truncnbr, true, '.'); break;
+        default: text = truncWords(text, truncnbr, false, ''); break;
       }
     }
     return ' ' + text;
@@ -715,24 +737,39 @@ function parseTextTemplate (str, indiv)
 }
 
 
+
+/**
+ * CHART
+ */
+
+
+
 function maxTextsSizes (indivs, start, end, options) {
-  var maxLength = 0, curr;
+  var maxLength = 0,
+      charWidth = options.fontSize * 0.4,
+      setMaxLength = function(el) {
+        var len = el.join(' ').length;
+        if (len > maxLength)
+          maxLength = len;
+      };
   for (var i=start; i<end; i++) {
-    if(indivs[i] == undefined || indivs[i].texts == undefined)
-      continue;
-    indivs[i].texts.forEach( function(el, i) {
-      curr = el.join(' ').length;
-      if (curr > maxLength) {
-        maxLength = curr;
-      }
-    });
+    if(indivs[i] && indivs[i].texts)
+      indivs[i].texts.forEach(setMaxLength);
   }
   return {
-    width: maxLength * (options.fontSize*.35) + options.txtSpace,
+    width: maxLength * charWidth + options.txtSpace,
     height: indivs[0].texts.length * options.fontSize + options.txtSpace
   };
 }
-
+function sliceMaxLines (texts, slice) {
+  // mesure the smallest arc size (not rooted)
+  // and return how much lines heights get in
+  var x = slice.arc1.a.x - slice.arc1.b.x,
+      y = slice.arc1.a.y - slice.arc1.b.y,
+      size = x*x + y*y,
+      lineh = settings.fontSize.value;
+  return Math.min(texts.length, Math.round(size / (lineh*lineh)));
+}
 function slicePathCoordinates (start, angle, r, t, reverse) {
   var arc1 = arcCoordinates(start, angle, r, reverse),
       arc2 = arcCoordinates(start+angle, -angle, r + t, reverse);
@@ -760,13 +797,6 @@ function arcPath (start, angle, r, reverse) {
       arcdir = reverse ? '0,0' : '0,1';
   return " M"+c.a.x+","+c.a.y + " A"+r+","+r+" 0 "+arcdir+" "+c.b.x+","+c.b.y;
 }
-function setDefault (obj, def) {
-  for (key in obj) {
-    if(obj[key] === undefined && def[key] !== undefined)
-      obj[key] = def[key];
-  }
-  return obj;
-}
 
 function drawChart (individuals, options) {
 
@@ -791,6 +821,14 @@ function drawChart (individuals, options) {
   view = snap.select('#viewport');
   fan = snap.select('#fan');
 
+  var addTextLine = function(text, index) {
+    if(index+1 > lineNbr) return;
+    textAttrs.dy = (index+1) * options.fontSize - lineNbr*(0.5*options.fontSize);
+    slice.text(0,0, text )
+         .attr(textAttrs)
+         .textPath.attr({startOffset: '50%'});
+  };
+
   if(fan !== null)
     fan.remove();
   fan = view.g().attr({id: 'fan'});
@@ -808,7 +846,7 @@ function drawChart (individuals, options) {
     for(var sliceID=0; sliceID<arcsNbr; sliceID++)
     {
       var startAngle = arcAngle * sliceID + options.rotation;
-      var middleAngle = startAngle + arcAngle * .5;
+      var middleAngle = startAngle + arcAngle * 0.5;
       var isTopHalf = middleAngle >= Math.PI && middleAngle <= Math.PI*2;
       var isLeftHalf = middleAngle >= Math.PI/2 && middleAngle < Math.PI * 1.5;
       var reverse = (isHorizontal && isTopHalf) || (!isHorizontal && isLeftHalf);
@@ -830,7 +868,7 @@ function drawChart (individuals, options) {
       // related individual
       id++;
       var indiv = individuals[id];
-      if(indiv == undefined || indiv.tree == undefined) {
+      if(indiv === undefined || indiv.tree === undefined) {
         slice.addClass('empty-slice');
         continue;
       }
@@ -841,35 +879,20 @@ function drawChart (individuals, options) {
 
       if (isHorizontal) {
         // centered horizontal arc
-        textAttrs.textpath  = arcPath(startAngle, arcAngle, radius + thickness * .5, !reverse);
-        // all lines
-        lineNbr = indiv.texts.length;
+        textAttrs.textpath  = arcPath(startAngle, arcAngle, radius + thickness * 0.5, !reverse);
       } else {
         // centered vertical line
-        lineCoord = slicePathCoordinates(startAngle+arcAngle*.5, 0, radius, thickness, reverse);
+        lineCoord = slicePathCoordinates(startAngle+arcAngle*0.5, 0, radius, thickness, reverse);
         textAttrs.textpath = "M"+lineCoord.arc1.a.x+","+lineCoord.arc1.a.y+" "+lineCoord.arc2.a.x+","+lineCoord.arc2.a.y;
-        // limit line number to disponible slice size
-        lineNbr = 0;
-        spliceWidth = Math.pow(coord.arc1.a.x - coord.arc1.b.x, 2) + Math.pow(coord.arc1.a.y - coord.arc1.b.y, 2);
-        indiv.texts.forEach( function(text, index) {
-          if (Math.pow((index+1) * options.fontSize, 2) < spliceWidth)
-            lineNbr++;
-        });
       }
-
-      indiv.texts.forEach( function(text, index) {
-        if(index+1 > lineNbr) return;
-        textAttrs.dy = (index+1) * options.fontSize - lineNbr*(.5*options.fontSize);
-        slice.text(0,0, text )
-             .attr(textAttrs)
-             .textPath.attr({startOffset: '50%'});
-      });
+      lineNbr = isHorizontal ? indiv.texts.length : sliceMaxLines(indiv.texts, coord);
+      indiv.texts.forEach(addTextLine);
     }
     radius += thickness + options.genSpace;
   }
 }
 
-}//]]>
+};//]]>
 
 </script>
 <body>
