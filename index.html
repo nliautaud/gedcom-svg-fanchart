@@ -361,7 +361,7 @@ function createPalettes () {
   settings.palette.innerHTML = '<option value=""></option>';
   var legends = '';
   data.tags.forEach( function(tag) {
-    if (tag.items.length < 2) return;
+    if (tag.items.length < 1) return;
     legends += tagLegend(tag);
     settings.palette.options[settings.palette.options.length] = new Option(tag.title, tag.name);
   });
@@ -526,15 +526,19 @@ function getParents (indiv)
 function parseIndividual (indiv) {
   indiv.classes = [];
   indiv.SQUA = 0;
+  var exclude = ['FAMC', 'FAMS', 'EVEN', 'CHAN'];
   indiv.tree.forEach(function (event) {
+    if (~exclude.indexOf(event.tag)) return;
     switch (event.tag) {
       case 'NAME': registerName(indiv, event); break;
       case 'SOUR': registerSource(indiv, event, 'I'); break;
       case 'BIRT': registerBirthDeath(indiv, event); break;
       case 'DEAT': registerBirthDeath(indiv, event); break;
-      default: registerGeneric(indiv, event); break;
+      default: registerTagClass(indiv, event.tag, event.data); break;
     }
+    registerAge(indiv, event);
   });
+  registerTagClass(indiv, 'SQUA', indiv.SQUA);
   registerTagClass(indiv, 'SQUA', indiv.SQUA);
 
   return indiv;
@@ -556,12 +560,6 @@ function updateIndivTexts () {
 }
 function updateTitle () {
   document.getElementById('title').innerHTML = parseTextTemplate(settings.title.value, data.origin).join(' ');
-}
-function registerGeneric (indiv, event) {
-  var exclude = ['NAME', 'FAMC', 'FAMS', 'BIRT', 'DEAT', 'EVEN', 'CHAN'];
-  if (exclude.indexOf(event.tag) != -1)
-    return;
-  registerTagClass(indiv, event.tag, event.data);
 }
 function registerName (indiv, nameobj) {
   var name, last, surn,
@@ -592,6 +590,7 @@ function registerBirthDeath (indiv, event) {
     registerTagClass(indiv, t+'YEAR', date.getFullYear());
     registerTagClass(indiv, t+'PRE', date.prefix);
   }
+  indiv[t+'DATEobj'] = date;
   //place
   var ptag = t + 'PLAC';
   indiv[ptag] = getValue(event, 'PLAC');
@@ -609,6 +608,14 @@ function registerBirthDeath (indiv, event) {
   if(source && source.data) {
     registerSource(indiv, source, t);
   }
+}
+function registerAge (indiv, event) {
+  var datestr = getValue(event, 'DATE');
+  if (datestr === '' || !indiv.BDATEobj) return;
+  var date = parseDate(datestr);
+  if (date === '') return;
+  var agedate = new Date(date.getTime() - indiv.BDATEobj.getTime());
+  registerTagClass(indiv, 'AG'+event.tag, agedate.getUTCFullYear()-1970);
 }
 function registerSource (indiv, source, prefix) {
   prefix = prefix || '';
@@ -657,9 +664,8 @@ function processTags () {
   });
 }
 function translateTagKey (tag) {
-  var t = tag.replace(/^[BDI]/, ''),
-      trans = {
-        evts: { B: 'Birth %', D: 'Death %', I: 'Individual %' },
+  var trans = {
+        evts: { B: 'Birth %', D: 'Death %', I: 'Individual %', AG: 'Age at %' },
         tags: {
           SEX: 'Genre', OCCU: 'Profession',
           SURN: 'Surnames', LAST: 'Lastnames',
@@ -667,13 +673,17 @@ function translateTagKey (tag) {
           COUNTR: 'country', STATE: 'state', DISTR: 'district', TOWN: 'town',
           SOUR: 'Source', SQUA: 'Sources quality',
           NOTE: 'Note',
+          BIRT: 'birth', DEAT: 'death', BURI: 'burial',
+          IMMI: 'immigration', CENS: 'cencus', _MILT: 'military',
+          RESI: 'residence',
         }
       },
-      nocut = ['BAPL','BAPM','BARM','BASM','BIRT','BLES','BLOB','DATA','DATE','DEAT','DESC','DESI','DEST','DIV','DIVF','DSCR','IMMI','IDNO','INDI'],
-      tagval = trans.tags[t],
-      event = trans.evts[tag[0]],
-      val = (tagval && event && !~nocut.indexOf(tag)) ? event.replace(/%/, tagval) : tagval;
-  return tagval ? val : tag;
+      prefix = tag.match(/^([BDI]|AG)(.+)/),
+      key = prefix ? prefix[2] : tag;
+  if(!trans.tags[key]) return tag;
+  if (!prefix) return trans.tags[tag];
+  prefix = prefix[1];
+  return trans.evts[prefix].replace(/%/, trans.tags[key]);
 }
 
 function getData (node, tag) {

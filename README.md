@@ -43,7 +43,7 @@ The chart is automaticaly updated when editing the following parameters.
 
 The chart title and slices labels use text templates, where keywords in uppercase are dynamicaly replaced by corresponding values.
 
-Any GEDCOM tag will be replaced by its corresponding data field, for example :
+Any GEDCOM tag is replaced by its corresponding data field, for example :
 
 ```
 SEX         M
@@ -51,7 +51,7 @@ OCCU        Astronaut
 ...         ...
 ```
 
-The following keywords will be replaced too (and each birth `B` have a variant for death `D`) :
+The following keywords are replaced too (and each birth `B` have a variant for death `D`) :
 
 ```
 LAST        Doe
@@ -70,6 +70,13 @@ BSQUA       3 (birth source quality)
 SQUA        7 (sources quality)
 GEN         1 (current generation)
 GENS        8 (number of generations)
+```
+
+Each event tag can be prefixed by `AG` to get the age at the event date (if there is one). For example:
+```
+AGDEAT		Age at death
+AGIMMI		Age at immigration
+...
 ```
 
 Values can be truncated by using numbers and dots :
