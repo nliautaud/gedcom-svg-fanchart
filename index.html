@@ -37,14 +37,18 @@
   .legend {
     display: none;
     position: absolute;
-    flex-flow: column wrap;
     margin: 0 0 0 3em;
   }
   .legend.show {
+    display: block;
+  }
+  .legend ul {
     display: flex;
+    flex-flow: column wrap;
   }
   .legend_label {
     display: none;
+    position: relative;
     min-width: 12em;
     padding: 0 1em;
   }
@@ -55,6 +59,10 @@
     content: '';
     padding: 0 .5em;
     margin-right: .5em;
+  }
+  .legend_label::after {
+    content: ' (' attr(data-nbr) ')';
+    opacity: .7;
   }
 
   aside {
@@ -323,7 +331,7 @@ function switchOrigin () {
 
 function updateChart() {
 
-  data.usedtags = [];
+  data.usedtags = {};
 
   drawChart(data.ancestors, {
     rotation: radians(Number(settings.rotation.value)),
@@ -383,7 +391,7 @@ function updatePalette () {
 
   if (!settings.globalColors.checked) {
     var fitems = tag.items.filter( function(item) {
-      return data.usedtags.indexOf(item.cls) !== -1;
+      return data.usedtags[item.cls];
     });
     tag = {name:tag.name, items:fitems};
   }
@@ -449,14 +457,18 @@ function filterLabels () {
       nbr = 0;
 
   labels.forEach( function(el, index) {
-    var slicesNbr = main.querySelectorAll('g.slice.'+el.classList[1]).length;
-    if ( nbr < settings.labelNbr.value && slicesNbr ){
-      nbr++;
-      el.classList.add('show');
-      el.style.order = -slicesNbr;
-      //el.innerText += '('+slicesNbr+')';
-    } else el.classList.remove('show');
+    el.classList.remove('show');
   });
+
+  data.usedtags[settings.palette.value].sort( function(a, b) {
+    return b.nbr - a.nbr;
+  }).slice(0, settings.labelNbr.value)
+    .forEach(function (item) {
+      var label = main.querySelector('.legend_label.'+item.name);
+      label.classList.add('show');
+      label.style.order = -item.nbr;
+      label.setAttribute('data-nbr', item.nbr);
+    });
 }
 
 
@@ -577,10 +589,8 @@ function registerName (indiv, nameobj) {
   surn = name.trim();
 
   indiv.SURN = surn;
-  registerTagClass(indiv, 'LAST', last);
-  surn.split(/[- ]+/).forEach(function(n) {
-    registerTagClass(indiv, 'SURN', n, true);
-  });
+  registerTagClass(indiv, 'LAST', last, false);
+  registerTagClass(indiv, 'SURN', surn, /[- ]+/);
 }
 function registerBirthDeath (indiv, event) {
   var t = event.tag[0],
@@ -609,7 +619,7 @@ function registerBirthDeath (indiv, event) {
     places.reverse();
     places.forEach(function (el, i) {
       var subptag = t+placesKeys[i];
-      registerTagClass(indiv, subptag, el, true);
+      registerTagClass(indiv, subptag, el, false);
       indiv[subptag] = el;
     });
   }
@@ -634,10 +644,11 @@ function registerSource (indiv, source, prefix) {
   registerTagClass(indiv, prefix+'SQUA', squality);
   indiv.SQUA += squality;
 }
-function registerTagClass (indiv, tagname, value, noattr) {
-  if(!noattr) indiv[tagname] = value;
+function registerTagClass (indiv, tagname, value, splitstr) {
+  indiv[tagname] = value;
   var v = value;
-  if(v.split) v = v.split(/[, ]/g)[0];
+  if(splitstr !== false && v.split)
+    v = v.split(splitstr || /[, ]/g)[0];
   var cls = tagname+cssnamify(v);
   indiv.classes.push(cls);
 
@@ -659,6 +670,19 @@ function registerTagClass (indiv, tagname, value, noattr) {
   });
   if (item) item.nbr++;
   else tag.items.push(newitem);
+}
+function registerUsedTag (className) {
+  var split = className.split(/_/),
+      tag = split[0];
+  if(!data.usedtags[tag])
+    data.usedtags[tag] = [];
+  var existing = data.usedtags[tag].find(function (el) {
+        return el.name == className;
+      });
+  if (!existing) {
+    return data.usedtags[tag].push({name: className, nbr:1});
+  }
+  else existing.nbr++;
 }
 function translateTagKey (tag) {
   var trans = {
@@ -904,7 +928,7 @@ function drawChart (individuals, options) {
         continue;
       }
       slice.addClass(indiv.classes.join(' '));
-      data.usedtags.push.apply(data.usedtags, indiv.classes);
+      indiv.classes.forEach(registerUsedTag);
 
       // texts
 
