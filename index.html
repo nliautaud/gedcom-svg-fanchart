@@ -483,11 +483,11 @@ function filterLabels () {
 
 function updateAncestors () {
   data.ancestors = [data.origin];
-  for (var gen = 0; gen <= settings.generations.value; gen++)
+  for (var cont = true, gen = 0; cont && gen <= 20; gen++)
   {
     var start = Math.floor(Math.pow(2, gen-1)),
         end = Math.pow(2, gen);
-
+    cont = false;
     for (var i = start; i < end; i++)
     {
       var parents = getParents(data.ancestors[i]);
@@ -497,6 +497,7 @@ function updateAncestors () {
       } else {
         data.ancestors.push(parents[0]);
         data.ancestors.push(parents[1]);
+        cont = true;
       }
     }
   }
