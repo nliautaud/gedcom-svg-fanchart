@@ -391,7 +391,9 @@ function updatePalette () {
 
   if (!settings.globalColors.checked) {
     var fitems = tag.items.filter( function(item) {
-      return data.usedtags[item.cls];
+      return data.usedtags[tag.name].find( function(useditem) {
+        return useditem.name === item.cls;
+      });
     });
     tag = {name:tag.name, items:fitems};
   }
