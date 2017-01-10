@@ -618,9 +618,11 @@ function registerBirthDeath (indiv, event) {
     places = indiv[ptag].split(/,\s*/, 5);
     places.reverse();
     places.forEach(function (el, i) {
-      var subptag = t+placesKeys[i];
-      registerTagClass(indiv, subptag, el, false);
-      indiv[subptag] = el;
+      var subptag = t+placesKeys[i],
+          pla = places.slice(i?i-1:0, i+1);
+      pla.reverse();
+      pla = pla.join(', ');
+      registerTagClass(indiv, subptag, pla, false);
     });
   }
   //source
@@ -648,7 +650,7 @@ function registerTagClass (indiv, tagname, value, splitstr) {
   indiv[tagname] = value;
   var v = value;
   if(splitstr !== false && v.split)
-    v = v.split(splitstr || /[, ]/g)[0];
+    v = v.split(splitstr || /[, ]+/g)[0];
   var cls = tagname+cssnamify(v);
   indiv.classes.push(cls);
 
