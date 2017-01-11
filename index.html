@@ -546,13 +546,15 @@ function filterLabels () {
   }
   var elements = [],
       labels = chartLegend.querySelectorAll('.'+settings.palettes.value+' .legend_label'),
+      values,
       nbr = 0;
 
   labels.forEach( function(el, index) {
     el.classList.remove('show');
   });
-
-  data.usedtags[settings.palettes.value].sort( function(a, b) {
+  values = data.usedtags[settings.palettes.value];
+  if(!values) return;
+  values.sort( function(a, b) {
     return b.nbr - a.nbr;
   }).slice(0, settings.labelNbr.value)
     .forEach(function (item) {
