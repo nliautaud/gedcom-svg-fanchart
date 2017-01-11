@@ -959,7 +959,8 @@ function drawChart (individuals, options) {
     genSpace: 1,
     txtSpace: 10,
     fontSize: 7,
-    lineHeight: 2
+    lineHeight: 2,
+    minThickness: 40
   });
   options.fontHeight = options.fontSize + options.lineHeight;
 
@@ -997,7 +998,7 @@ function drawChart (individuals, options) {
     var arcAngle = 2*Math.PI / arcsNbr;
     var maxTexts = maxTextsSizes(individuals, id, id+arcsNbr, options);
 
-    thickness = isHorizontal ? maxTexts.height : maxTexts.width;
+    thickness = isHorizontal ? Math.max(maxTexts.height, options.minThickness) : maxTexts.width;
 
     for(var sliceID=0; sliceID<arcsNbr; sliceID++)
     {
