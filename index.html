@@ -785,13 +785,14 @@ function registerUsedTag (className) {
 }
 function translateTagKey (tag) {
   var trans = {
-        evts: { B: 'Birth %', D: 'Death %', I: 'Individual %', AG: 'Age at %' },
+        evts: { B: 'Birth %', D: 'Death %', I: 'Individual %', AG: '% (age)' },
         tags: {
           SEX: 'Genre', OCCU: 'Profession',
-          SURN: 'Surnames', LAST: 'Lastnames',
-          DAY: 'day', MON: 'month', YEAR: 'year', PRE: 'date type',
-          DEC: 'decade', CEN: 'century',
-          COUNTR: 'country', STATE: 'state', DISTR: 'district', TOWN: 'town',
+          SURN: 'Name: surnames', LAST: 'Name: lastnames',
+          DAY: 'date: day', MON: 'date: month', YEAR: 'date: year', PRE: 'date: type',
+          DEC: 'date: decade', CEN: 'date: century',
+          COUNTR: 'place: country', STATE: 'place: state',
+          DISTR: 'place: district', TOWN: 'place: town',
           SOUR: 'Source', SQUA: 'Sources quality', NOTE: 'Note',
           BIRT: 'birth', DEAT: 'death', BURI: 'Burial', BAPM: 'Baptism',
           IMMI: 'Immigration', NATU : 'Naturalisation', ADOP: 'Adoption',
