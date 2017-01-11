@@ -23,25 +23,11 @@ You can save the page with its content by using the *File > Save web page as...*
 
 The original file is accessing libraries listed below trough internet. If you need a local version, you can simply save it *without* dropping a GEDCOM file. The saved file, accompanied with its data folder, will be a clean, local version of the software. Note that the data folder name is browser-specific.
 
-## Settings
-
-The chart is automaticaly updated when editing the following parameters.
-
-- **title** : dynamic text template for the chart title.
-- **content** : dynamic text template for the chart labels.
-- **generations** : number of ancestors generations to show in the chart.
-- **origin ID** : number of the GEDCOM individual to use as center of the chart.
-- **rotation** : label are drawn in the most readable orientation according to the slice size and chart rotation.
-- **font size** : slices sizes and labels are adjusted accoding to the content size.
-- **padding** : space surrounding labels.
-- **generation spacing** : space between generation circles.
-- **color palette** : colorize the chart according to a specific data.
-- **labels number** : number of color labels to display.
-- **global coloring** : generate large palettes with every variants or small ones for each chart.
-
 ## Dynamic text templates
 
-The chart title and slices labels use text templates, where keywords in uppercase are dynamicaly replaced by corresponding values.
+The chart title and individual labels use text templates, where keywords in uppercase are dynamicaly replaced by corresponding values.
+
+The chart is automatically updated when the *individuals* text field is out of focus, and drawn in the best way possible according to the texts contents and the aspect settings.
 
 Any GEDCOM tag is replaced by its corresponding data field, for example :
 
@@ -90,21 +76,34 @@ SURN..1     John...
 SURN...1    J...
 ```
 
-## Color palettes and legends
+## Navigation
 
-The chart can be dynamically colored according to each data, by using the *color palette* drop-down.
-Each existing variants will be given a distinct color.
+The *origin ID* is the number of the center individual in the GEDCOM file.
 
-Gradients are generated for numerical values (ex. dates, sources qualities...), and distinct colors for the others (ex. names, places...). 
+By checking *auto resize*, the chart will be fit and centered into the page when updated. You may want to uncheck it to maintain a specific zoom and position.
+
+You can move and zoom onto the chart at any time by dragging/scrolling/pinching.
+
+## Aspect
+
+The chart and labels are sized and drawn in the smallest and most readable way according to the following aspect settings.
+
+The first *generations* circles are written "horizontally" and the slices are sized to contain all the lines of text. For the next generations, as the slices width are smaller and smaller, the content is written "verticaly" (pointing outside). The slices are sized to contain the texts line length, and displays only the number of lines who fits in.
+
+The texts are drawn in the best direction depending on the slice orientation and the chart *rotation*.
+
+The *padding* add space around labels, and the *generation spacing* add some space between each generation circles.
+
+## Colors
+
+The chart can be dynamically colored according to each data, by using the *color palette* drop-down. Gradients are generated for numerical values (ex. dates, sources qualities...), and distinct colors for others (ex. names, places...). 
 
 **Global coloring**  
 By default palettes are generated once, with a distinct color for each existing data variant, even for the ones not currently on the chart. Palettes are thus not recomputed when navigating, and same values will have the same color accross charts. But the more variants there are, the more chances there will be of similar colors, as the colors are not optimized for the current chart.
 By disabling the *global coloring* option, color palettes are specifically generated for the values of the current chart.
 
 **Legend**  
-The chart legend list the colors and their corresponding values, sorted by occurences.
-The maximum number of legend labels can be changed in the settings.
-The legend title and labels are directly editables, and will retain their new value accross charts.
+The chart legend is a list of the colors and their corresponding values, sorted by occurences. The maximum *legend number* can be changed in the settings. The legend title and labels are directly editables, and will retain their new value accross charts.
 
 ## Editing
 
@@ -129,9 +128,9 @@ The dynamic coloring for example is done by attributing a distinct fill color to
 
 - GEDCOM parser : https://github.com/tmcw/parse-gedcom
 - SVG drawing : https://github.com/adobe-webplatform/Snap.svg
-- SVG pan and zoom : https://github.com/ariutta/svg-pan-zoom
+- SVG pan and zoom : https://github.com/huei90/snap.svg.zpd
 - Textarea resizing : https://github.com/jackmoore/autosize
-- Distinct colors generation : https://github.com/medialab/iwanthue
+- Colors generation : https://github.com/medialab/iwanthue
 
 ## Tests
 

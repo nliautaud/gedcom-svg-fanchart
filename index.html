@@ -3,7 +3,7 @@
 <script src='https://wzrd.in/standalone/parse-gedcom@latest'></script>
 <script src='https://cdn.rawgit.com/jackmoore/autosize/master/dist/autosize.min.js'></script>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js'></script>
-<script src='https://ariutta.github.io/svg-pan-zoom/dist/svg-pan-zoom.min.js'></script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/snap.svg.zpd/0.0.11/snap.svg.zpd.js'></script>
 <style>
   * {
     box-sizing: border-box;
@@ -32,6 +32,12 @@
   .loaded .infos {
     opacity: 0;
     visibility: hidden;
+  }
+
+  #title {
+    text-align: center;
+    font: 500 1.675em/1.2 arial;
+    margin: .8em;
   }
 
   .legend {
@@ -69,32 +75,66 @@
     position: fixed;
     top: 0; bottom: 0;
     overflow: auto;
-    display: flex;
-    flex-flow: column;
-    width: 12em;
-    height: 100%;
-    background-color: #fff;
+    width: 14em;
+    background-color: #fcfcfc;
     border-right: 1px solid #ddd;
-    padding: 1em;
+    z-index: 1;
   }
-  aside input,
-  aside textarea,
-  aside select {
+  fieldset {
+    border: none;
+    margin: 1em 0;
+    padding: 0 10%;
+    overflow: hidden;
+  }
+  legend {
+    font-size: .8em;
+    font-weight: bold;
+    width: 140%;
+    margin: 0 0 1em -20%;
+    border: 1px solid #ddd;
+    position: relative;
+    padding: 1em 20%;
+    background-color: #f5f5f5;
+  }
+  label{
+    padding: .5em 0;
+    font-size: .8em;
+    vertical-align: middle;
+  }
+  input,
+  textarea,
+  select {
     width: 100%;
     border: 1px solid #ddd;
     padding: .25em;
+    vertical-align: middle;
   }
-  aside input[type=checkbox] {
-    width: auto;
-    margin-right: 1em;
-  }
-  aside label{
-    padding: .5em 0;
-    font-size: .8em;
-  }
-  aside textarea {
+  textarea {
     resize: none;
     overflow: hidden;
+  }
+  input[type=checkbox] {
+    display: none;
+  }
+  input[type=checkbox] + label {
+    display: block;
+    margin-top: .75em;
+    padding: 0;
+  }
+  input[type=checkbox] + label:before{
+    content: '✓';
+    display: inline-block;
+    font-size: 2em;
+    line-height: .8em;
+    margin-right: .2em;
+    vertical-align: middle;
+    border: 1px solid #ddd;
+    background: white;
+    color: transparent;
+    transition: color .1s ease;
+  }
+  input[type=checkbox]:checked + label:before{
+    color: black;
   }
 
   main {
@@ -102,7 +142,7 @@
     flex-direction: column;
     height: 100%;
     overflow: auto;
-    margin-left: 12em;
+    margin-left: 14em;
     position: relative;
   }
   svg {
@@ -118,11 +158,6 @@
       margin-left: 0;
     }
   }
-
-  #title {
-    text-align: center;
-  }
-
 
   .empty-slice path {
     fill: #f5f5f5;
@@ -181,7 +216,8 @@ window.onload=function(){
 var data = {},
     main = document.getElementById('main'),
     chartStyle = document.getElementById('chartStyle'),
-    chartLegend = document.getElementById('chartLegend');
+    chartLegend = document.getElementById('chartLegend'),
+    chart, zpd;
 
 
 
@@ -195,19 +231,22 @@ var settings = {
     generations : document.getElementById('generations'),
     originID : document.getElementById('originID'),
     rotation : document.getElementById('rotation'),
-    fontSize : document.getElementById('fontSize'),
     txtSpace : document.getElementById('txtSpace'),
     genSpace : document.getElementById('genSpace'),
-    palette  : document.getElementById('palette'),
+    palettes : document.getElementById('palette'),
     labelNbr : document.getElementById('labelNbr'),
-    globalColors : document.getElementById('globalColors'),
-    title : document.getElementById('titleTemplate'),
-    text : document.getElementById('textTemplate'),
+    globCols : document.getElementById('globCols'),
+    titleTpl : document.getElementById('titleTemplate'),
+    indivTpl : document.getElementById('indivTemplate'),
+    autosize : document.getElementById('autosize'),
 };
 settings.originID.addEventListener('change', switchOrigin);
-settings.palette.addEventListener('change', switchPalette);
+settings.palettes.addEventListener('change', switchPalette);
 settings.labelNbr.addEventListener('change', filterLabels);
-settings.globalColors.addEventListener('change', updatePalette);
+settings.globCols.addEventListener('change', updatePalette);
+
+settings.autosize.addEventListener('change', fitChart);
+window.addEventListener('resize', fitChart);
 
 [].forEach.call(document.querySelectorAll('input.chartUpdate'), function(el) {
   el.addEventListener('change', updateChart);
@@ -219,14 +258,14 @@ settings.globalColors.addEventListener('change', updatePalette);
   });
 });
 
-settings.title.addEventListener('input', function (el) {
+settings.titleTpl.addEventListener('input', function (el) {
   updateTitle();
-  settings.title.innerHTML = settings.title.value;
+  settings.titleTpl.innerHTML = settings.titleTpl.value;
 });
-settings.text.addEventListener('change', function (el) {
+settings.indivTpl.addEventListener('change', function (el) {
   updateIndivTexts();
   updateChart();
-  settings.text.innerHTML = settings.text.value;
+  settings.indivTpl.innerHTML = settings.indivTpl.value;
 });
 
 autosize(document.getElementsByTagName('textarea'));
@@ -325,7 +364,7 @@ function switchOrigin () {
   registerOrigin();
   updateAncestors();
   updateChart();
-  if(!settings.globalColors.checked)
+  if(!settings.globCols.checked)
     updatePalette();
 }
 
@@ -333,27 +372,35 @@ function updateChart() {
 
   data.usedtags = {};
 
-  drawChart(data.ancestors, {
+  chart = drawChart(data.ancestors, {
     rotation: radians(Number(settings.rotation.value)),
-    fontSize: Number(settings.fontSize.value),
+    fontSize: 7,
     txtSpace: Number(settings.txtSpace.value),
     genSpace: Number(settings.genSpace.value)
   });
+  fitChart();
 
   filterLabels();
 
   document.body.classList.add('loaded');
 
-  svgPanZoom('#chart', {
-    viewportSelector:'#view',
-    fit:true,
-    contain: true,
-    center: true,
-    maxZoom: 2,
-    minZoom: 0.5
-  });
-
   dataStr.innerText = JSON.stringify(data);
+}
+function fitChart() {
+  if(!settings.autosize.checked) return;
+  var zpdid = '#snapsvg-zpd-'+chart.id,
+      zpd =  Snap.select(zpdid);
+  if(!zpd) {
+    chart.zpd();
+    zpd =  Snap.select(zpdid);
+  }
+  var box = chart.getBBox(),
+      curr = chart.zpd('save'),
+      halfw = chart.node.clientWidth*0.5,
+      halfh = chart.node.clientHeight*0.5,
+      zoom = Math.min(halfw/box.r1, halfh/box.r2) * curr.a;
+  var m = Snap.matrix(zoom, 0, 0, zoom, halfw, halfh);
+  zpd.transform(m);
 }
 
 
@@ -372,24 +419,24 @@ palette.addEventListener('message', addPalette, false);
 
 
 function createPalettes () {
-  settings.palette.innerHTML = '<option value=""></option>';
+  settings.palettes.innerHTML = '<option value=""></option>';
   var legends = '';
   data.tags.forEach( function(tag) {
     if (tag.items.length < 1) return;
     legends += tagLegend(tag);
-    settings.palette.options[settings.palette.options.length] = new Option(tag.title, tag.name);
+    settings.palettes.options[settings.palettes.options.length] = new Option(tag.title, tag.name);
   });
   chartLegend.innerHTML = legends;
 }
 function updatePalette () {
-  var currtag = settings.palette.value;
+  var currtag = settings.palettes.value;
   main.className = '';
   var tag = data.tags.find(function (el) {
     return el.name == currtag;
   });
   if(!tag) return;
 
-  if (!settings.globalColors.checked) {
+  if (!settings.globCols.checked) {
     var fitems = tag.items.filter( function(item) {
       return data.usedtags[tag.name].find( function(useditem) {
         return useditem.name === item.cls;
@@ -426,7 +473,7 @@ function paletteStyle (tag, colors) {
 }
 function addPalette(e) {
   paletteStyle(e.data.tag, e.data.colors);
-  main.className = 'show_'+settings.palette.value;
+  main.className = 'show_'+settings.palettes.value;
 }
 function switchPalette () {
   updatePalette();
@@ -443,7 +490,7 @@ function tagLegend (tag) {
 function updateLegend () {
   var labGroups = chartLegend.children;
   [].forEach.call(labGroups, function(el, i) {
-    if (settings.palette.value && el.classList.contains(settings.palette.value))
+    if (settings.palettes.value && el.classList.contains(settings.palettes.value))
       el.classList.add('show');
     else el.classList.remove('show');
   });
@@ -451,18 +498,18 @@ function updateLegend () {
 }
 
 function filterLabels () {
-  if (!settings.palette.value) {
+  if (!settings.palettes.value) {
     return;
   }
   var elements = [],
-      labels = chartLegend.querySelectorAll('.'+settings.palette.value+' .legend_label'),
+      labels = chartLegend.querySelectorAll('.'+settings.palettes.value+' .legend_label'),
       nbr = 0;
 
   labels.forEach( function(el, index) {
     el.classList.remove('show');
   });
 
-  data.usedtags[settings.palette.value].sort( function(a, b) {
+  data.usedtags[settings.palettes.value].sort( function(a, b) {
     return b.nbr - a.nbr;
   }).slice(0, settings.labelNbr.value)
     .forEach(function (item) {
@@ -566,7 +613,7 @@ function parseIndividual (indiv) {
 }
 function updateIndivTexts () {
 
-  var lines = settings.text.value
+  var lines = settings.indivTpl.value
     .split('\n')
     .filter(function (el, i) {
       return el.trim().length > 0;
@@ -580,7 +627,7 @@ function updateIndivTexts () {
   });
 }
 function updateTitle () {
-  document.getElementById('title').innerHTML = parseTextTemplate(settings.title.value, data.origin).join(' ');
+  document.getElementById('title').innerHTML = parseTextTemplate(settings.titleTpl.value, data.origin).join(' ');
 }
 function registerName (indiv, nameobj) {
   var name, last, surn,
@@ -821,13 +868,13 @@ function maxTextsSizes (indivs, start, end, options) {
     height: indivs[0].texts.length * options.fontSize + options.txtSpace
   };
 }
-function sliceMaxLines (texts, slice) {
+function sliceMaxLines (texts, slice, options) {
   // mesure the smallest arc size (not rooted)
   // and return how much lines heights get in
   var x = slice.arc1.a.x - slice.arc1.b.x,
       y = slice.arc1.a.y - slice.arc1.b.y,
       size = x*x + y*y,
-      lineh = settings.fontSize.value;
+      lineh = options.fontSize;
   return Math.min(texts.length, Math.round(size / (lineh*lineh)));
 }
 function slicePathCoordinates (start, angle, r, t, reverse) {
@@ -945,11 +992,12 @@ function drawChart (individuals, options) {
         lineCoord = slicePathCoordinates(startAngle+arcAngle*0.5, 0, radius, thickness, reverse);
         textAttrs.textpath = "M"+lineCoord.arc1.a.x+","+lineCoord.arc1.a.y+" "+lineCoord.arc2.a.x+","+lineCoord.arc2.a.y;
       }
-      lineNbr = isHorizontal ? indiv.texts.length : sliceMaxLines(indiv.texts, coord);
+      lineNbr = isHorizontal ? indiv.texts.length : sliceMaxLines(indiv.texts, coord, options);
       indiv.texts.forEach(addTextLine);
     }
     radius += thickness + options.genSpace;
   }
+  return snap;
 }
 
 };//]]>
@@ -958,19 +1006,33 @@ function drawChart (individuals, options) {
 <body>
 <div class="infos">Drop a GEDCOM file</div>
 <aside class="controls">
-  <label>title<textarea id="titleTemplate">Ascendants fan chart of SURN LAST<br>GENS generations</textarea></label>
-  <label>generations<input type="number" id="generations" class="chartUpdate" min="1" max="10" value="6"></label>
-  <label>origin ID<input type="number" id="originID" min="0" max="9999" value="0"></label>
-  <label>content<textarea id="textTemplate">SURN.1 LAST2
+  <fieldset>
+    <legend>Text templates</legend>
+    <label>title<textarea id="titleTemplate">Ascendants fan chart of SURN LAST on GENS generations</textarea></label>
+    <label>individuals<textarea id="indivTemplate">SURN.1 LAST2
 BYEAR - DYEAR
 OCCU</textarea></label>
-  <label>rotation<input type="number" id="rotation" class="chartUpdate" min="0" max="360" step="45" value="90"></label>
-  <label>font size<input type="number" id="fontSize" class="chartUpdate" min="5" max="20" step="1" value="7"></label>
-  <label>padding<input type="number" id="txtSpace" class="chartUpdate" min="0" max="50" step="10" value="10"></label>
-  <label>generation spacing<input type="number" id="genSpace" class="chartUpdate" min="0" max="20" step="1" value="1"></label>
-  <label>color palette<select id="palette"></select></label>
-  <label>legend labels<input type="number" id="labelNbr" min="0" value="10"></label>
-  <label><input type="checkbox" id="globalColors" checked>global coloring</label>
+  </fieldset>
+  <fieldset>
+    <legend>Navigation</legend>
+    <label>origin ID<input type="number" id="originID" min="0" max="9999" value="0"></label>
+    <input type="checkbox" name="autosize" id="autosize" checked>
+    <label for="autosize"><span class="check"></span>auto resize</label>
+  </fieldset>
+  <fieldset>
+    <legend>Aspect</legend>
+    <label>generations<input type="number" id="generations" class="chartUpdate" min="1" max="10" value="6"></label>
+    <label>rotation<input type="number" id="rotation" class="chartUpdate" min="0" max="360" step="45" value="90"></label>
+    <label>padding<input type="number" id="txtSpace" class="chartUpdate" min="0" max="50" step="10" value="10"></label>
+    <label>generation spacing<input type="number" id="genSpace" class="chartUpdate" min="0" max="20" step="1" value="1"></label>
+  </fieldset>
+  <fieldset>
+    <legend>Colors</legend>
+    <label>palette<select id="palette"></select></label>
+    <label>legend number<input type="number" id="labelNbr" min="0" value="10"></label>
+    <input type="checkbox" name="globCols" id="globCols" checked>
+    <label for="globCols"><span class="check"></span>global coloring</label>
+  </fieldset>
 </aside>
 <main id="main">
   <h3 id="title"></h3>
