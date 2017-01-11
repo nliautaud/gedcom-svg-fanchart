@@ -457,7 +457,7 @@ palette.addEventListener('message', addPalette, false);
 
 
 function createPalettes () {
-  settings.palettes.innerHTML = '<option value=""></option>';
+  settings.palettes.innerHTML = '<option value=" "></option>';
   var opt = [],
       legends = '';
   data.tags.forEach( function(tag, i) {
