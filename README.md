@@ -78,7 +78,7 @@ SURN...1    J...
 
 ## Navigation
 
-The *origin ID* is the number of the center individual in the GEDCOM file.
+The *origin* is the individual at the center of the chart. Write names to fuzzy-search in the list.
 
 By checking *auto resize*, the chart will be fit and centered into the page when updated. You may want to uncheck it to maintain a specific zoom and position.
 

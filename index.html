@@ -77,7 +77,7 @@
     position: fixed;
     top: 0; bottom: 0;
     overflow: auto;
-    width: 16em;
+    width: 18em;
     background-color: #fcfcfc;
     border-right: 1px solid #ddd;
     z-index: 1;
@@ -153,13 +153,14 @@
   .choices__item {
     padding: .5em !important;
     font-size: 1em !important;
+    height: 1.8em !important;
+    overflow: hidden;
   }
   .choices__list--single {
     padding: 0 16px 0 0 !important;
   }
   .choices__item--selectable {
     padding-right: 0 !important;
-    min-height: 2em;
   }
 
   main {
@@ -167,7 +168,7 @@
     flex-direction: column;
     height: 100%;
     overflow: auto;
-    margin-left: 16em;
+    margin-left: 18em;
     position: relative;
   }
   svg {
@@ -254,7 +255,7 @@ var data = {},
 
 var settings = {
     generations : document.getElementById('generations'),
-    originID : document.getElementById('originID'),
+    origin : document.getElementById('origin'),
     rotation : document.getElementById('rotation'),
     txtSpace : document.getElementById('txtSpace'),
     genSpace : document.getElementById('genSpace'),
@@ -265,7 +266,7 @@ var settings = {
     indivTpl : document.getElementById('indivTemplate'),
     autosize : document.getElementById('autosize'),
 };
-settings.originID.addEventListener('change', switchOrigin);
+settings.origin.addEventListener('change', switchOrigin);
 settings.palettes.addEventListener('change', switchPalette);
 settings.labelNbr.addEventListener('change', filterLabels);
 settings.globCols.addEventListener('change', updatePalette);
@@ -371,6 +372,7 @@ function parseFileContent (e) {
     return el.tag == 'INDI';
   }).map(parseIndividual);
 
+  registerIndivs();
   createPalettes();
   registerOrigin();
   updateTitle();
@@ -381,13 +383,25 @@ function parseFileContent (e) {
   console.log(data);
 }
 
+function registerIndivs () {
+  var opt = [];
+  data.indi.forEach( function(indi, i) {
+    opt.push({value:''+i, label:indi.LAST+' '+indi.SURN, id:i});
+  });
+  var choices = new Choices(settings.origin, {
+    choices: opt,
+    shouldSort: false,
+    itemSelectText: ''
+  });
+}
 function registerOrigin () {
-  settings.originID.value = Math.min(data.indi.length-1, settings.originID.value);
-  data.origin = data.indi[settings.originID.value];
+  settings.origin.value = Math.min(data.indi.length-1, settings.origin.value);
+  data.origin = data.indi[settings.origin.value];
 }
 function switchOrigin () {
   registerOrigin();
   updateAncestors();
+  updateTitle();
   updateChart();
   if(!settings.globCols.checked)
     updatePalette();
@@ -424,8 +438,7 @@ function fitChart() {
       halfw = chart.node.clientWidth*0.5,
       halfh = chart.node.clientHeight*0.5,
       zoom = Math.min(halfw/box.r1, halfh/box.r2) * curr.a;
-  var m = Snap.matrix(zoom, 0, 0, zoom, halfw, halfh);
-  zpd.transform(m);
+  zpd.transform(Snap.matrix(zoom, 0, 0, zoom, halfw, halfh));
 }
 
 
@@ -1048,7 +1061,8 @@ OCCU</textarea></label>
   <fieldset>
     <legend>Navigation</legend>
     <div class="fieldset_content">
-      <label>origin ID<input type="number" id="originID" min="0" max="9999" value="0"></label>
+      <label for="origin">origin</label>
+      <select name="origin" id="origin"></select>
       <input type="checkbox" name="autosize" id="autosize" checked>
       <label for="autosize"><span class="check"></span>auto resize</label>
     </div>
