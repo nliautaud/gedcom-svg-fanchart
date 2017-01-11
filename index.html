@@ -296,6 +296,12 @@ settings.indivTpl.addEventListener('change', function (el) {
 
 autosize(document.getElementsByTagName('textarea'));
 
+// fit chart on print
+if (window.matchMedia)
+    window.matchMedia('print').addListener(fitChart);
+window.onbeforeprint = fitChart;
+
+
 
 
 /**
