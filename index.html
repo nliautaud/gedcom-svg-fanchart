@@ -330,8 +330,8 @@ function radians (degrees) {
   return degrees * Math.PI / 180;
 }
 function setDefault (obj, def) {
-  for (var key in obj) {
-    if(obj[key] === undefined && def[key] !== undefined)
+  for (var key in def) {
+    if(obj[key] === undefined)
       obj[key] = def[key];
   }
   return obj;
@@ -581,22 +581,18 @@ function filterLabels () {
 
 function updateAncestors () {
   data.ancestors = [data.origin];
+  var start, end, parents;
   for (var cont = true, gen = 0; cont && gen <= 20; gen++)
   {
-    var start = Math.floor(Math.pow(2, gen-1)),
-        end = Math.pow(2, gen);
+    start = Math.floor(Math.pow(2, gen-1));
+    end = Math.pow(2, gen);
     cont = false;
     for (var i = start; i < end; i++)
     {
-      var parents = getParents(data.ancestors[i]);
-      if(!parents.length) {
-        data.ancestors.push({});
-        data.ancestors.push({});
-      } else {
-        data.ancestors.push(parents[0]);
-        data.ancestors.push(parents[1]);
-        cont = true;
-      }
+      parents = getParents(data.ancestors[i]);
+      data.ancestors.push(parents[0] || {});
+      data.ancestors.push(parents[1] || {});
+      if(parents.length) cont = true;
     }
   }
 }
@@ -916,7 +912,7 @@ function maxTextsSizes (indivs, start, end, options) {
   }
   return {
     width: maxLength * charWidth + options.txtSpace,
-    height: indivs[0].texts.length * options.fontSize + options.txtSpace
+    height: indivs[0].texts.length * options.fontHeight + options.txtSpace
   };
 }
 function sliceMaxLines (texts, slice, options) {
@@ -925,7 +921,7 @@ function sliceMaxLines (texts, slice, options) {
   var x = slice.arc1.a.x - slice.arc1.b.x,
       y = slice.arc1.a.y - slice.arc1.b.y,
       size = x*x + y*y,
-      lineh = options.fontSize;
+      lineh = options.fontHeight;
   return Math.min(texts.length, Math.round(size / (lineh*lineh)));
 }
 function slicePathCoordinates (start, angle, r, t, reverse) {
@@ -962,8 +958,10 @@ function drawChart (individuals, options) {
     rotation: radians(90),
     genSpace: 1,
     txtSpace: 10,
-    fontSize: 7
+    fontSize: 7,
+    lineHeight: 2
   });
+  options.fontHeight = options.fontSize + options.lineHeight;
 
   var radius = 30,  // center radius
       thickness,
@@ -981,7 +979,7 @@ function drawChart (individuals, options) {
 
   var addTextLine = function(text, index) {
     if(index+1 > lineNbr) return;
-    textAttrs.dy = (index+1) * options.fontSize - lineNbr*(0.5*options.fontSize);
+    textAttrs.dy = -1 + (index+1) * options.fontSize - lineNbr*(0.5*options.fontSize);
     slice.text(0,0, text )
          .attr(textAttrs)
          .textPath.attr({startOffset: '50%'});
