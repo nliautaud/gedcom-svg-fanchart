@@ -96,7 +96,9 @@ The *padding* add space around labels, and the *generation spacing* add some spa
 
 ## Colors
 
-The chart can be dynamically colored according to each data, by using the *color palette* drop-down. Gradients are generated for numerical values (ex. dates, sources qualities...), and distinct colors for others (ex. names, places...). 
+The chart can be dynamically colored according to each data, by using the *color palette* drop-down. Gradients are generated for numerical values (ex. dates, sources qualities...), and distinct colors for others (ex. names, places...).
+
+The palette selection drop-down is also as a fuzzy-search filter.
 
 **Global coloring**  
 By default palettes are generated once, with a distinct color for each existing data variant, even for the ones not currently on the chart. Palettes are thus not recomputed when navigating, and same values will have the same color accross charts. But the more variants there are, the more chances there will be of similar colors, as the colors are not optimized for the current chart.
@@ -129,8 +131,9 @@ The dynamic coloring for example is done by attributing a distinct fill color to
 - GEDCOM parser : https://github.com/tmcw/parse-gedcom
 - SVG drawing : https://github.com/adobe-webplatform/Snap.svg
 - SVG pan and zoom : https://github.com/huei90/snap.svg.zpd
-- Textarea resizing : https://github.com/jackmoore/autosize
 - Colors generation : https://github.com/medialab/iwanthue
+- Textarea resizing : https://github.com/jackmoore/autosize
+- Searchable fields : https://github.com/jshjohnson/Choices
 
 ## Tests
 
