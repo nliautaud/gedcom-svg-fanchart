@@ -100,6 +100,9 @@ The chart can be dynamically colored according to each data, by using the *color
 
 The palette selection drop-down is also as a fuzzy-search filter.
 
+**Highlights**  
+Specific informations can be highlighted by limiting the coloring to certain selected values. All the values are colored by default.
+
 **Global coloring**  
 By default palettes are generated once, with a distinct color for each existing data variant, even for the ones not currently on the chart. Palettes are thus not recomputed when navigating, and same values will have the same color accross charts. But the more variants there are, the more chances there will be of similar colors, as the colors are not optimized for the current chart.
 By disabling the *global coloring* option, color palettes are specifically generated for the values of the current chart.

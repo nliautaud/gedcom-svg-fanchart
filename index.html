@@ -159,9 +159,14 @@
   .choices__list--single {
     padding: 0 16px 0 0 !important;
   }
-  .choices__item--selectable {
-    padding-right: 0 !important;
-  }
+  .choices__list--multiple .choices__item,
+  .choices__list--multiple .choices__item.is-highlighted {
+    padding: .3em .5em !important;
+    background-color: white;
+    border: 1px solid #dddddd;
+    border-radius: 3px;
+    color: black;
+}
 
   main {
     display: flex;
@@ -265,11 +270,13 @@ var settings = {
     titleTpl : document.getElementById('titleTemplate'),
     indivTpl : document.getElementById('indivTemplate'),
     autosize : document.getElementById('autosize'),
+    highlights : document.getElementById('highlights'),
 };
 settings.origin.addEventListener('change', switchOrigin);
 settings.palettes.addEventListener('change', switchPalette);
 settings.labelNbr.addEventListener('change', filterLabels);
 settings.globCols.addEventListener('change', updatePalette);
+settings.highlights.addEventListener('change', updatePalette);
 
 settings.autosize.addEventListener('change', fitChart);
 window.addEventListener('resize', fitChart);
@@ -461,21 +468,29 @@ var blob = new Blob([
 var palette = new Worker(window.URL.createObjectURL(blob));
 palette.addEventListener('message', addPalette, false);
 
+palettesChoices = false;
+highlightsChoices = false;
 
 function createPalettes () {
-  settings.palettes.innerHTML = '<option value=" "></option>';
-  var opt = [],
+
+  var opt = [{value: ' ', label: ' '}],
       legends = '';
-  data.tags.forEach( function(tag, i) {
+
+  data.tags.forEach( function(tag) {
     if (tag.items.length < 1) return;
     legends += tagLegend(tag);
-    opt.push({value: tag.name, label: tag.title, id:i});
+    opt.push({value: tag.name, label: tag.title});
   });
   chartLegend.innerHTML = legends;
-  var choices = new Choices(settings.palettes, {
+
+  if(palettesChoices) palettesChoices.destroy();
+
+  palettesChoices = new Choices(settings.palettes, {
     choices: opt,
     itemSelectText: ''
   });
+
+  updateHighlights();
 }
 function updatePalette () {
   var currtag = settings.palettes.value;
@@ -485,11 +500,13 @@ function updatePalette () {
   });
   if(!tag) return;
 
-  if (!settings.globCols.checked) {
+  if (!settings.globCols.checked || settings.highlights.value) {
     var fitems = tag.items.filter( function(item) {
-      return data.usedtags[tag.name].find( function(useditem) {
+      var used = settings.globCols.checked || data.usedtags[tag.name].find( function(useditem) {
         return useditem.name === item.cls;
       });
+      var highlighted = !settings.highlights.value || highlightsChoices.getValue(true).indexOf(item.cls) !== -1;
+      return used && highlighted;
     });
     tag = {name:tag.name, items:fitems};
   }
@@ -521,11 +538,13 @@ function paletteStyle (tag, colors) {
   style.innerText = styleContent;
 }
 function addPalette(e) {
+  filterLabels();
   paletteStyle(e.data.tag, e.data.colors);
   main.className = 'show_'+settings.palettes.value;
 }
 function switchPalette () {
   updatePalette();
+  updateHighlights();
   updateLegend();
 }
 function tagLegend (tag) {
@@ -561,14 +580,38 @@ function filterLabels () {
   values = data.usedtags[settings.palettes.value];
   if(!values) return;
   values.sort( function(a, b) {
-    return b.nbr - a.nbr;
-  }).slice(0, settings.labelNbr.value)
+      return b.nbr - a.nbr;
+    })
+    .filter(function (item) {
+      return !settings.highlights.value || highlightsChoices.getValue(true).indexOf(item.name) !== -1
+    })
+    .slice(0, settings.labelNbr.value)
     .forEach(function (item) {
       var label = main.querySelector('.legend_label.'+item.name);
       label.classList.add('show');
       label.style.order = -item.nbr;
       label.setAttribute('data-nbr', item.nbr);
     });
+}
+function updateHighlights () {
+  var opt = [];
+  if(settings.palettes.value) {
+    var tag = data.tags.find(function (el) {
+      return el.name == settings.palettes.value;
+    });
+    tag.items.forEach( function(el) {
+      opt.push({value:el.cls, label:el.val});
+    });
+  }
+  if(highlightsChoices) highlightsChoices.destroy();
+
+  highlightsChoices = new Choices(settings.highlights, {
+    choices: opt,
+    itemSelectText: '',
+    shouldSort: false,
+    maxItemsCount: 10,
+    noChoicesText: 'No palette selected'
+  });
 }
 
 
@@ -1089,6 +1132,8 @@ OCCU</textarea></label>
     <div class="fieldset_content">
       <label for="palette">palette</label>
       <select name="palette" id="palette"></select>
+      <label for="highlights">highlights</label>
+      <select multiple name="highlights" id="highlights"></select>
       <label>legend number<input type="number" id="labelNbr" min="0" value="10"></label>
       <input type="checkbox" name="globCols" id="globCols" checked>
       <label for="globCols"><span class="check"></span>global coloring</label>
