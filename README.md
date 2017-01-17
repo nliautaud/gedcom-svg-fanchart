@@ -5,7 +5,7 @@ Create a SVG genealogical fan chart from a GEDCOM file.
 [1]: https://rawgit.com/nliautaud/gedcom-svg-fanchart/master/index.html
 [2]: https://github.com/nliautaud/gedcom-svg-fanchart/archive/master.zip
 
-[Demo][1]|
+[Live version][1]|
 ----------
 [<img src="capture.png" alt="Capture" width="607px"/>][1]|
 
@@ -41,28 +41,35 @@ The following keywords are replaced too (and each one started with `B` for birth
 
 ```
 LAST        Doe
-SURN        John Alexander
-BYEAR       1936
-BMON        06
-BDAY        24
-BPRE        abt.
-BDEC        1930
-BCEN        1900
-BPLAC       Lorentz Crater, Northwest limb, Bright side, Moon
-BCNTR       Moon
-BSTAT       Bright side
-BDSTR       Northwest limb
-BTOWN       Lorentz Crater
-BSOUR       NASA Bigest book, p14
-BSQUA       3 (birth source quality)
-SQUA        7 (sources quality)
+SURN        John Joseph-Alexander (complete surnames)
+SURS        John / Joseph / Alexander (individual surnames)
 GENS        8 (number of generations)
 ```
 
-Each event tag can be prefixed by `AG` to get the age at the event date (if there is one). For example:
+The following keywords can be prefixed by `B` and `D` for birth and death data (ex. birth place, death sources, etc.) or not prefixed for every data (ex. all countries or sources for the individual) :
+
 ```
-AGDEAT		Age at death
-AGIMMI		Age at immigration
+YEAR       1936
+MON        6
+DAY        24
+PRE        abt.
+DEC        1930
+CEN        1900
+PLAC       Lorentz Crater, Northwest limb, Bright side, Moon
+CNTR       Moon
+STAT       Bright side
+DSTR       Northwest limb
+TOWN       Lorentz Crater
+AREA       Lorentz Crater (smallest known place)
+SOUR       NASA Bigest book, p14
+SQUA       7 (sources quality)
+```
+
+Each event tag can be prefixed by `AG` to get the age at the event date (if there is one) :
+
+```
+AGDEAT		75 (age at death)
+AGIMMI		28 (age at immigration)
 ...
 ```
 

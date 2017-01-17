@@ -682,23 +682,27 @@ function getParents (indiv)
 }
 
 function parseIndividual (indiv) {
+  indiv.tags = [];
   indiv.classes = [];
+  indiv.GID = indiv.pointer;
   indiv.SQUA = 0;
   var exclude = ['FAMC', 'FAMS', 'EVEN', 'CHAN'];
   indiv.tree.forEach(function (event) {
     if (~exclude.indexOf(event.tag)) return;
     switch (event.tag) {
       case 'NAME': registerName(indiv, event); break;
-      case 'SOUR': registerSource(indiv, event, 'I'); break;
-      case 'BIRT': registerBirthDeath(indiv, event); break;
-      case 'DEAT': registerBirthDeath(indiv, event); break;
-      default: registerTagClass(indiv, event.tag, event.data); break;
+      case 'SOUR': registerSource(indiv, event); break;
+      case 'BIRT': registerEvent(indiv, event, 'B'); break;
+      case 'DEAT': registerEvent(indiv, event, 'D'); break;
+      default: registerEvent(indiv, event); break;
     }
     if(event.tag !== 'BIRT') registerAge(indiv, event);
   });
+  indiv.tags.forEach(function(tag){
+    registerTagClass(indiv, tag);
+  });
   registerTagClass(indiv, 'SQUA', indiv.SQUA);
-  registerTagClass(indiv, 'SQUA', indiv.SQUA);
-
+  registerLifeArea(indiv);
   return indiv;
 }
 function updateIndivTexts () {
@@ -719,6 +723,16 @@ function updateIndivTexts () {
 function updateTitle () {
   document.getElementById('title').innerHTML = parseTextTemplate(settings.titleTpl.value, data.origin).join(' ');
 }
+function registerEvent (indiv, event, prefix) {
+  registerPlace(indiv, event);
+  registerPlace(indiv, event, prefix);
+  registerSource(indiv, event);
+  registerSource(indiv, event, prefix);
+  registerDate(indiv, event, prefix);
+
+  if(!prefix)
+    registerValue(indiv, event.tag, event.data);
+}
 function registerName (indiv, nameobj) {
   var name, last, surn,
       lastreg = /\/(.*?)\//;
@@ -728,48 +742,52 @@ function registerName (indiv, nameobj) {
   name = name.replace(lastreg, '');
   surn = name.trim();
 
-  indiv.SURN = surn;
-  registerTagClass(indiv, 'LAST', last, false);
-  registerTagClass(indiv, 'SURN', surn, /[- ]+/);
+  registerValue(indiv, 'LAST', last, false);
+  registerValue(indiv, 'SURN', surn, false);
+  registerValue(indiv, 'SURS', surn, /[- ]+/);
 }
-function registerBirthDeath (indiv, event) {
-  var t = event.tag[0],
-      places,
-      placesKeys = ['COUNTR','STATE','DISTR','TOWN'];
-  //date
+function registerDate (indiv, event, prefix) {
   var datestr = getValue(event, 'DATE'),
       date = parseDate(datestr);
-  indiv[t+'DATE'] = datestr;
-  if (date !== '') {
-    registerTagClass(indiv, t+'DAY', date.getDate());
-    registerTagClass(indiv, t+'MON', date.getMonth()+1);
-    registerTagClass(indiv, t+'YEAR', date.getFullYear());
-    registerTagClass(indiv, t+'PRE', date.prefix);
-    indiv[t+'DATEobj'] = date;
-    // decade & century
-    var year = date.getFullYear().toString();
-    registerTagClass(indiv, t+'DEC', year.slice(0,3)+'0');
-    registerTagClass(indiv, t+'CEN', year.slice(0,2)+'00');
-  }
-  //place
-  var ptag = t + 'PLAC';
-  indiv[ptag] = getValue(event, 'PLAC');
-  if(indiv[ptag]) {
-    places = indiv[ptag].split(/,\s*/, 5);
-    places.reverse();
-    places.forEach(function (el, i) {
-      var subptag = t+placesKeys[i],
-          pla = places.slice(i?i-1:0, i+1);
-      pla.reverse();
-      pla = pla.join(', ');
-      registerTagClass(indiv, subptag, pla, false);
-    });
-  }
-  //source
-  var source = getData(event, 'SOUR');
-  if(source && source.data) {
-    registerSource(indiv, source, t);
-  }
+  indiv[prefix+'DATE'] = datestr;
+  if (isNaN(date) || date === '') return;
+  prefix = prefix ? prefix : '';
+  if (datestr.match(/^\d\d? /)) // make sure there is really a day
+    registerValue(indiv, prefix+'DAY', date.getDate());
+  if (datestr.match(/^\d+ \w+/)) // make sure there is really a month
+    registerValue(indiv, prefix+'MON', date.getMonth()+1);
+  registerValue(indiv, prefix+'YEAR', date.getFullYear());
+  registerValue(indiv, prefix+'PRE', date.prefix);
+  indiv[prefix+'DATEobj'] = date;
+  // decade & century
+  var year = date.getFullYear().toString();
+  registerValue(indiv, prefix+'DEC', year.slice(0,3)+'0');
+  registerValue(indiv, prefix+'CEN', year.slice(0,2)+'00');
+}
+function registerPlace(indiv, event, prefix) {
+  var placesKeys = ['COUNTR','STATE','DISTR','TOWN'],
+      place = getValue(event, 'PLAC');
+  if(!place) return;
+  prefix = prefix ? prefix : '';
+  registerValue(indiv, prefix + 'PLAC', place, false);
+  place = place.split(/,\s*/, 5);
+  if(prefix) // unprefixed done manually with @registerLifeArea
+    registerValue(indiv, prefix + 'AREA', place[0], false);
+  place.reverse();
+  place.forEach(function (el, i) {
+    registerValue(indiv, prefix+placesKeys[i], place[i], false);
+  });
+}
+function registerLifeArea (indiv) {
+  var lifeplaces;
+  ['TOWN','DISTR','STATE','COUNTR'].forEach(function (placekey) {
+      if(!indiv[placekey]) return;
+      var isMultiple = indiv[placekey].join && indiv[placekey].length > 1;
+      if(isMultiple || !lifeplaces)
+        lifeplaces = indiv[placekey];
+  });
+  if(lifeplaces)
+    registerValue(indiv, 'AREA', lifeplaces, false);
 }
 function registerAge (indiv, event) {
   var datestr = getValue(event, 'DATE');
@@ -777,25 +795,62 @@ function registerAge (indiv, event) {
   var date = parseDate(datestr);
   if (date === '') return;
   var agedate = new Date(date.getTime() - indiv.BDATEobj.getTime());
-  registerTagClass(indiv, 'AG'+event.tag, agedate.getUTCFullYear()-1970);
+  registerValue(indiv, 'AG'+event.tag, agedate.getUTCFullYear()-1970);
 }
-function registerSource (indiv, source, prefix) {
+function registerSource (indiv, event, prefix) {
+  var source = event.tag === 'SOUR' ? event : getData(event, 'SOUR');
+  if (!source || !source.data) return;
   prefix = prefix || '';
   var squality = Number(getValue(source, 'QUAY'));
-  registerTagClass(indiv, prefix+'SOUR', source.data);
-  registerTagClass(indiv, prefix+'SQUA', squality);
+  registerValue(indiv, prefix+'SOUR', source.data);
+  if (prefix)
+    registerValue(indiv, prefix+'SQUA', squality);
   indiv.SQUA += squality;
 }
-function registerTagClass (indiv, tagname, value, splitstr) {
-  indiv[tagname] = value;
-  var v = value;
-  if(splitstr !== false && v.split)
-    v = v.split(splitstr || /[, ]+/g)[0];
-  var cls = tagname+cssnamify(v);
-  indiv.classes.push(cls);
+function registerValue (indiv, tagname, value, splitstr) {
+  indiv.tags.push(tagname);
 
+  if(splitstr !== false && value.split)
+    value = value.split(splitstr || /[, ]+/g);
+  else if(!value.push) value = [value];
+
+  value.forEach(function(val){
+    if(!indiv[tagname]) {
+      indiv[tagname] = val;
+      return;
+    }
+    if(indiv[tagname].push) {
+      if(indiv[tagname].indexOf(val) === -1)
+        indiv[tagname].push(val);
+      return;
+    }
+    if(indiv[tagname] === val) return;
+    indiv[tagname] = [indiv[tagname], val];
+  });
+}
+function registerTagClass (indiv, tagname, nojoin) {
+
+  var cls,
+      val = indiv[tagname];
+
+  if(val.join) {
+    if(tagname == 'SURS') {
+      val.forEach(function(v) {
+        cls = tagname + cssnamify(v);
+        indiv.classes.push(cls);
+        registerTag(tagname, v, cls);
+      });
+      return;
+    }
+    val = val.join(' / ');
+  }
+  cls = tagname + cssnamify(val);
+  indiv.classes.push(cls);
+  registerTag(tagname, val, cls);
+}
+function registerTag (tagname, val, cls) {
   var item,
-      newitem = {val: v, cls: cls, nbr: 1},
+      newitem = {val: val, cls: cls, nbr: 1},
       tag = data.tags.find(function (el) {
         return el.name == tagname;
       });
@@ -828,28 +883,39 @@ function registerUsedTag (className) {
 }
 function translateTagKey (tag) {
   var trans = {
-        evts: { B: 'Birth %', D: 'Death %', I: 'Individual %', AG: '% (age)' },
+        noprefix: ['BURI','BAPL','BAPM','BARM','BASM','BLES','DAY','DEC','DIV','DIF','DISTR'],
+        evts: { B: 'Birth %', D: 'Death %', AG: '% (age)' },
         tags: {
           SEX: 'Genre', OCCU: 'Profession',
-          SURN: 'Name: surnames', LAST: 'Name: lastnames',
-          DAY: 'date: day', MON: 'date: month', YEAR: 'date: year', PRE: 'date: type',
-          DEC: 'date: decade', CEN: 'date: century',
-          COUNTR: 'place: country', STATE: 'place: state',
-          DISTR: 'place: district', TOWN: 'place: town',
-          SOUR: 'Source', SQUA: 'Sources quality', NOTE: 'Note',
-          BIRT: 'birth', DEAT: 'death', BURI: 'Burial', BAPM: 'Baptism',
+          LAST: 'Name: lastnames', SURN: 'Name: surnames (comp.)', SURS: 'Name: surnames (indiv.)',
+          DAY: 'Dates: days', MON: 'Dates: months', YEAR: 'Dates: years', PRE: 'Dates: types',
+          DEC: 'Dates: decades', CEN: 'Dates: centuries',
+          PLAC: 'Places', AREA: 'Places: areas',
+          COUNTR: 'Places: countries', STATE: 'Places: states',
+          DISTR: 'Places: districts', TOWN: 'Places: towns',
+          SOUR: 'Sources', SQUA: 'Sources quality', NOTE: 'Note',
+          BURI: 'Burial', BAPM: 'Baptism',
           IMMI: 'Immigration', NATU : 'Naturalisation', ADOP: 'Adoption',
           CENS: 'Cencus', _MILT: 'Military',
           RESI: 'Residence', PROP: 'Property',
+        },
+        tagsprefixed: {
+          BIRT: 'birth', DEAT: 'death',
+          DAY: 'date: day', MON: 'date: month', YEAR: 'date: year', PRE: 'date: type',
+          DEC: 'date: decade', CEN: 'date: century',
+          PLAC: 'place', AREA: 'place: area',
+          COUNTR: 'place: country', STATE: 'place: state',
+          DISTR: 'place: district', TOWN: 'place: town',
+          SOUR: 'sources', SQUA: 'sources quality',
         }
       },
-      noprefix = ['IMMI','BURI','BAPL','BAPM','BARM','BASM','BLES','DIV','DIF'].indexOf(tag) !== -1,
-      prefix = noprefix ? null : tag.match(/^([BDI]|AG)(.+)/),
+      noprefix = trans.noprefix.indexOf(tag) !== -1,
+      prefix = noprefix ? null : tag.match(/^([BD]|AG)(.+)/),
       key = prefix ? prefix[2] : tag;
-  if(!trans.tags[key]) return tag;
+  if (!trans.tags[key] && !trans.tagsprefixed[key]) return tag;
   if (!prefix) return trans.tags[tag];
   prefix = prefix[1];
-  return trans.evts[prefix].replace(/%/, trans.tags[key]);
+  return trans.evts[prefix].replace(/%/, trans.tagsprefixed[key] || trans.tags[key]);
 }
 
 function getData (node, tag) {
@@ -918,7 +984,7 @@ function parseTextTemplate (str, indiv)
       return '';
 
     if(Array.isArray(indiv[key]))
-      text = indiv[key].join(' ');
+      text = indiv[key].join(', ');
     else text = indiv[key];
 
     if(truncate !== null) {
