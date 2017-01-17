@@ -1134,7 +1134,11 @@ function drawChart (individuals, options) {
 
       // related individual
       id++;
-      var indiv = individuals[id];
+      var indiv = individuals[id]
+      slice.node.indiv = indiv;
+      slice.node.addEventListener('click', function (e) {
+        console.log(e.currentTarget.indiv);
+      });
       if(indiv === undefined || indiv.tree === undefined) {
         slice.addClass('empty-slice');
         continue;
