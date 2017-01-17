@@ -212,12 +212,12 @@ self.addEventListener('message', function (e) {
   if(isNum) {
     var base = chroma( Math.random()*360, 0.8, 0.5, 'hsl' ),
         colorgen = chroma.bezier(['white', base]),
-        min, max, minimax;
+        min = Infinity, max = -Infinity, minimax;
     e.data.items.forEach( function(item) {
-      if (!max || item.val > max) max = item.val;
-      if (!min || item.val < min) min = item.val;
+      if (item.val > max) max = item.val;
+      if (item.val < min) min = item.val;
     });
-    minimax = max-min;
+    minimax = max-min + Number.EPSILON
     e.data.items.forEach(function (item, i) {
       var v = (item.val - min) / minimax;
       colors.push(colorgen(.2+v*.8));
