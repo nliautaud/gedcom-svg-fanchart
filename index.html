@@ -724,12 +724,10 @@ function parseIndividual (indiv, id) {
   return indiv;
 }
 function updateIndivTexts () {
-
-  var lines = settings.indivTpl.value
-    .split('\n')
-    .filter(function (el, i) {
+  var notempty = function (el, i) {
       return el.trim().length > 0;
-    });
+    },
+    lines = settings.indivTpl.value.split('\n').filter(notempty);
 
   data.indi.forEach( function(el) {
     el.texts = [];
@@ -1053,6 +1051,12 @@ function sliceMaxLines (texts, slice, options) {
       lineh = options.fontHeight;
   return Math.min(texts.length, Math.round(size / (lineh*lineh)));
 }
+function circlePathDef (x, y, r) {
+  var path = "M"+(x+r)+","+y;
+  path += " A"+r+","+r+" 0 0,0 "+(x-r)+","+y;
+  path += " A"+r+","+r+" 0 0,0 "+(x+r)+","+y;
+  return path;
+}
 function slicePathDef (coord, start, a, r, t) {
   coord = coord || slicePathCoordinates(start, a, r, t);
   var slicePath = "M"+coord.arc1.a.x+","+coord.arc1.a.y;
@@ -1101,8 +1105,7 @@ function drawChart (individuals, options) {
   });
   options.fontHeight = options.fontSize + options.lineHeight;
 
-  var radius = 30,  // center radius
-      thickness,
+  var radius, thickness,
       snap, view, fan, slice, // snapsvg objects
       coord, slicePath,
       lineCoord, linePath, lineNbr, spliceWidth,
@@ -1118,9 +1121,10 @@ function drawChart (individuals, options) {
   var addTextLine = function(text, index) {
     if(index+1 > lineNbr) return;
     textAttrs.dy = -1 + (index+1) * options.fontSize - lineNbr*(0.5*options.fontSize);
-    slice.text(0,0, text )
-         .attr(textAttrs)
-         .textPath.attr({startOffset: '50%'});
+    var txt = slice.text(0,0, text );
+    txt.attr(textAttrs);
+    if(!txt.textPath) return;
+    txt.textPath.attr({startOffset: '50%'});
   };
   var onSliceClick = function (e) {
     console.log(e.currentTarget.indiv);
@@ -1140,6 +1144,18 @@ function drawChart (individuals, options) {
     fan.remove();
   fan = view.g().attr({id: 'fan'});
 
+  // origin
+  slice = fan.g();
+  maxTexts = maxTextsSizes(individuals, 0, 1, options);
+  radius = Math.max(Math.max(maxTexts.height, maxTexts.width)*.5, options.minThickness);
+  slice.path(circlePathDef(0, 0, radius));
+  slice.addClass('slice GEN_0 '+ individuals[0].classes.join(' '));
+  individuals[0].classes.forEach(registerUsedTag);
+  lineNbr = individuals[0].texts.length;
+  individuals[0].texts.forEach(addTextLine);
+  radius+= options.genSpace;
+
+  // ancestors
   for(gen=1, id=0; gen<=settings.generations.value; gen++)
   {
     isHorizontal = gen < 4;
@@ -1216,7 +1232,7 @@ function drawChart (individuals, options) {
       <label>title<textarea id="titleTemplate">Ascendants fan chart of SURN LAST on GENS generations</textarea></label>
       <label>individuals<textarea id="indivTemplate">SURN.1 LAST2
 BYEAR - DYEAR
-OCCU</textarea></label>
+OCCU..2</textarea></label>
     </div>
   </fieldset>
   <fieldset>
