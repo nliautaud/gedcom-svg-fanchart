@@ -1130,18 +1130,22 @@ function drawChart (individuals, options) {
     switchOrigin();
   }
 
+  var gen, id, sliceID, indiv,
+      arcsNbr, arcAngle,
+      startAngle, middleAngle,
+      isHorizontal, isTopHalf, isLeftHalf,
+      reverse, maxTexts;
+
   if(fan !== null)
     fan.remove();
   fan = view.g().attr({id: 'fan'});
 
-  var id = 0;
-  for(var gen=1; gen<=settings.generations.value; gen++)
+  for(gen=1, id=0; gen<=settings.generations.value; gen++)
   {
-    var isHorizontal = gen < 4;
-    var arcsNbr = Math.pow(2, gen);
-    var arcAngle = 2*Math.PI / arcsNbr;
-    var maxTexts = maxTextsSizes(individuals, id, id+arcsNbr, options);
-
+    isHorizontal = gen < 4;
+    arcsNbr = Math.pow(2, gen);
+    arcAngle = 2*Math.PI / arcsNbr;
+    maxTexts = maxTextsSizes(individuals, id, id+arcsNbr, options);
     thickness = isHorizontal ? Math.max(maxTexts.height, options.minThickness) : maxTexts.width;
 
     if(gen > 6) {
@@ -1151,17 +1155,18 @@ function drawChart (individuals, options) {
       slice.path(slicePathDef(null, Math.PI, Math.PI, radius, thickness));
     }
 
-    for(var sliceID=0; sliceID<arcsNbr; sliceID++)
+    for(sliceID=0; sliceID<arcsNbr; sliceID++)
     {
       id++;
-      var indiv = individuals[id]
+      indiv = individuals[id]
       if(gen > 6 && !indiv) continue;
 
-      var startAngle = arcAngle * sliceID + options.rotation;
-      var middleAngle = startAngle + arcAngle * 0.5;
-      var isTopHalf = middleAngle >= Math.PI && middleAngle <= Math.PI*2;
-      var isLeftHalf = middleAngle >= Math.PI/2 && middleAngle < Math.PI * 1.5;
-      var reverse = (isHorizontal && isTopHalf) || (!isHorizontal && isLeftHalf);
+      startAngle = arcAngle * sliceID + options.rotation;
+      if(startAngle > Math.PI*2) startAngle -= Math.PI*2;
+      middleAngle = startAngle + arcAngle * 0.5;
+      isTopHalf = middleAngle >= Math.PI && middleAngle <= Math.PI*2;
+      isLeftHalf = middleAngle >= Math.PI/2 && middleAngle < Math.PI * 1.5;
+      reverse = (isHorizontal && isTopHalf) || (!isHorizontal && isLeftHalf);
 
       // slice
 
