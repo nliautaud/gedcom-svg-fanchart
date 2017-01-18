@@ -645,15 +645,15 @@ function updateAncestors () {
     for (var i = start; i < end; i++)
     {
       parents = getParents(data.ancestors[i]);
-      data.ancestors.push(parents[0] || {});
-      data.ancestors.push(parents[1] || {});
+      data.ancestors.push(parents[0] || null);
+      data.ancestors.push(parents[1] || null);
       if(parents.length) cont = true;
     }
   }
 }
 function getParents (indiv)
 {
-  if(indiv === undefined || indiv.tree === undefined) return [];
+  if(!indiv) return [];
 
   // find family where indiv is child
 
@@ -1047,6 +1047,14 @@ function sliceMaxLines (texts, slice, options) {
       lineh = options.fontHeight;
   return Math.min(texts.length, Math.round(size / (lineh*lineh)));
 }
+function slicePathDef (coord, start, a, r, t) {
+  coord = coord || slicePathCoordinates(start, a, r, t);
+  var slicePath = "M"+coord.arc1.a.x+","+coord.arc1.a.y;
+  slicePath += " A"+coord.arc1.r+","+coord.arc1.r+" 0 0,1 "+coord.arc1.b.x+","+coord.arc1.b.y;
+  slicePath += " L"+coord.arc2.a.x+","+coord.arc2.a.y;
+  slicePath += " A"+coord.arc2.r+","+coord.arc2.r+" 0 0,0 "+coord.arc2.b.x+","+coord.arc2.b.y;
+  return slicePath + " Z";
+}
 function slicePathCoordinates (start, angle, r, t, reverse) {
   var arc1 = arcCoordinates(start, angle, r, reverse),
       arc2 = arcCoordinates(start+angle, -angle, r + t, reverse);
@@ -1108,6 +1116,9 @@ function drawChart (individuals, options) {
          .attr(textAttrs)
          .textPath.attr({startOffset: '50%'});
   };
+  var onSliceClick = function (e) {
+    console.log(e.currentTarget.indiv);
+  }
 
   if(fan !== null)
     fan.remove();
@@ -1123,8 +1134,19 @@ function drawChart (individuals, options) {
 
     thickness = isHorizontal ? Math.max(maxTexts.height, options.minThickness) : maxTexts.width;
 
+    if(gen > 6) {
+      slice = fan.g();
+      slice.addClass('slice GEN_'+gen+' empty-slice');
+      slice.path(slicePathDef(null, 0, Math.PI, radius, thickness));
+      slice.path(slicePathDef(null, Math.PI, Math.PI, radius, thickness));
+    }
+
     for(var sliceID=0; sliceID<arcsNbr; sliceID++)
     {
+      id++;
+      var indiv = individuals[id]
+      if(gen > 6 && indiv === null) continue;
+
       var startAngle = arcAngle * sliceID + options.rotation;
       var middleAngle = startAngle + arcAngle * 0.5;
       var isTopHalf = middleAngle >= Math.PI && middleAngle <= Math.PI*2;
@@ -1134,30 +1156,19 @@ function drawChart (individuals, options) {
       // slice
 
       coord = slicePathCoordinates(startAngle, arcAngle, radius, thickness);
-
-      slicePath  = " M"+coord.arc1.a.x+","+coord.arc1.a.y;
-      slicePath += " A"+coord.arc1.r+","+coord.arc1.r+" 0 0,1 "+coord.arc1.b.x+","+coord.arc1.b.y;
-      slicePath += " L"+coord.arc2.a.x+","+coord.arc2.a.y;
-      slicePath += " A"+coord.arc2.r+","+coord.arc2.r+" 0 0,0 "+coord.arc2.b.x+","+coord.arc2.b.y;
-      slicePath += " Z";
-
       slice = fan.g();
       slice.addClass('slice GEN_'+gen);
-      slice.path(slicePath);
+      slice.path(slicePathDef(coord));
 
-      // related individual
-      id++;
-      var indiv = individuals[id]
-      slice.node.indiv = indiv;
-      slice.node.addEventListener('click', function (e) {
-        console.log(e.currentTarget.indiv);
-      });
-      if(indiv === undefined || indiv.tree === undefined) {
+      if(indiv === null) {
         slice.addClass('empty-slice');
         continue;
       }
       slice.addClass(indiv.classes.join(' '));
       indiv.classes.forEach(registerUsedTag);
+
+      slice.node.indiv = indiv;
+      slice.node.addEventListener('click', onSliceClick);
 
       // texts
 
@@ -1166,7 +1177,7 @@ function drawChart (individuals, options) {
         textAttrs.textpath  = arcPath(startAngle, arcAngle, radius + thickness * 0.5, !reverse);
       } else {
         // centered vertical line
-        lineCoord = slicePathCoordinates(startAngle+arcAngle*0.5, 0, radius, thickness, reverse);
+        lineCoord = slicePathCoordinates(middleAngle, 0, radius, thickness, reverse);
         textAttrs.textpath = "M"+lineCoord.arc1.a.x+","+lineCoord.arc1.a.y+" "+lineCoord.arc2.a.x+","+lineCoord.arc2.a.y;
       }
       lineNbr = isHorizontal ? indiv.texts.length : sliceMaxLines(indiv.texts, coord, options);
@@ -1204,7 +1215,7 @@ OCCU</textarea></label>
   <fieldset>
     <legend>Aspect</legend>
     <div class="fieldset_content">
-      <label>generations<input type="number" id="generations" class="chartUpdate" min="1" max="10" value="6"></label>
+      <label>generations<input type="number" id="generations" class="chartUpdate" min="1" value="6"></label>
       <label>rotation<input type="number" id="rotation" class="chartUpdate" min="0" max="360" step="45" value="90"></label>
       <label>padding<input type="number" id="txtSpace" class="chartUpdate" min="0" max="50" step="10" value="10"></label>
       <label>generation spacing<input type="number" id="genSpace" class="chartUpdate" min="0" max="20" step="1" value="1"></label>
