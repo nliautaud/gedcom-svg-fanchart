@@ -749,7 +749,7 @@ function registerEvent (indiv, event, prefix) {
   registerDate(indiv, event, prefix);
 
   if(!prefix)
-    registerValue(indiv, event.tag, event.data);
+    registerValue(indiv, event.tag, event.data, false);
 }
 function registerName (indiv, nameobj) {
   var name, last, surn,
