@@ -15,13 +15,28 @@ Create a SVG genealogical fan chart from a GEDCOM file.
 
 Drop a GEDCOM file onto the page.
 
-## Dynamic text templates
+## Objectives
+
+As i never found a genealogical charting tool fulfilling the three following ideas, I made a rough one :
+
+Charts should be able to be colored according to any genealogical data. Genealogical charts, without even reading their content, can be a powerful vizualisation tool. In the case of a fan chart, coloring slices create a sort of genealogical pie chart, where the distribution of the data is instinctively visualizable as an ancestrial percentage.
+
+Editing charts should be simple and immediate :
+- Being able to edit displayed informations by direct editing of content or templates.
+- Being able to tweak every visual aspects of the chart.
+- Being able to see the changes immediately.
+
+Charts should adapt to the content and user wishes, not the contrary. The charts should be drawn dynamically in the most lisible way considering the given requirements.
+
+## Settings
+
+### Dynamic text templates
 
 The chart title and individual labels use text templates, where keywords in uppercase are dynamicaly replaced by corresponding values. See [Data keywords](#data-keywords).
 
 The chart is automatically updated when the *individuals* text field is out of focus, and drawn in the best way possible according to the texts contents and the aspect settings.
 
-## Navigation
+### Navigation
 
 The *origin* is the individual at the center of the chart. Write names to fuzzy-search in the list. You can also double-click on the chart.
 
@@ -29,7 +44,7 @@ By checking *auto resize*, the chart will be fit and centered into the page when
 
 You can move and zoom onto the chart at any time by dragging/scrolling/pinching.
 
-## Aspect
+### Aspect
 
 The chart and labels are sized and drawn in the smallest and most readable way according to the following aspect settings.
 
@@ -39,7 +54,7 @@ The texts are drawn in the best direction depending on the slice orientation and
 
 The *padding* add space around labels, and the *generation spacing* add some space between each generation circles.
 
-## Colors
+### Colors
 
 The chart can be dynamically colored according to each data, corresponding to the [data keywords](#data-keywords), by using the *color palette* drop-down. Gradients are generated for numerical values (ex. dates, sources qualities...), and distinct colors for others (ex. names, places...).
 
