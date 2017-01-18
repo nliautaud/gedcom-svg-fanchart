@@ -381,9 +381,21 @@ function parseFileContent (e) {
   if(!data.tree.length) return;
 
   data.tags = [];
-  data.indi = data.tree.filter(function (el) {
-    return el.tag == 'INDI';
-  }).map(parseIndividual);
+  data.indi = [];
+  data.sour = {};
+
+  data.tree.forEach(function (el) {
+    switch(el.tag) {
+      case 'INDI':
+        data.indi.push(el); break;
+      case 'SOUR':
+        data.sour[el.pointer] = getData(el, 'TITL').data;
+        break;
+      default: break;
+    }
+  });
+
+  data.indi.map(parseIndividual);
 
   registerIndivs();
   createPalettes();
@@ -749,9 +761,9 @@ function registerName (indiv, nameobj) {
 function registerDate (indiv, event, prefix) {
   var datestr = getValue(event, 'DATE'),
       date = parseDate(datestr);
-  indiv[prefix+'DATE'] = datestr;
   if (isNaN(date) || date === '') return;
   prefix = prefix ? prefix : '';
+  registerValue(indiv, prefix+'DATE', datestr, false);
   if (datestr.match(/^\d\d? /)) // make sure there is really a day
     registerValue(indiv, prefix+'DAY', date.getDate());
   if (datestr.match(/^\d+ \w+/)) // make sure there is really a month
@@ -802,7 +814,8 @@ function registerSource (indiv, event, prefix) {
   if (!source || !source.data) return;
   prefix = prefix || '';
   var squality = Number(getValue(source, 'QUAY'));
-  registerValue(indiv, prefix+'SOUR', source.data);
+  registerValue(indiv, prefix+'SGID', source.data);
+  registerValue(indiv, prefix+'SOUR', data.sour[source.data], false);
   if (prefix)
     registerValue(indiv, prefix+'SQUA', squality);
   indiv.SQUA += squality;
@@ -883,17 +896,17 @@ function registerUsedTag (className) {
 }
 function translateTagKey (tag) {
   var trans = {
-        noprefix: ['BURI','BAPL','BAPM','BARM','BASM','BLES','DAY','DEC','DIV','DIF','DISTR'],
+        noprefix: ['BURI','BAPL','BAPM','BARM','BASM','BLES','DATE','DAY','DEC','DIV','DIF','DISTR'],
         evts: { B: 'Birth %', D: 'Death %', AG: '% (age)' },
         tags: {
           SEX: 'Genre', OCCU: 'Profession',
           LAST: 'Name: lastnames', SURN: 'Name: surnames (comp.)', SURS: 'Name: surnames (indiv.)',
-          DAY: 'Dates: days', MON: 'Dates: months', YEAR: 'Dates: years', PRE: 'Dates: types',
-          DEC: 'Dates: decades', CEN: 'Dates: centuries',
+          DATE: 'Dates', DAY: 'Dates: days', MON: 'Dates: months', YEAR: 'Dates: years',
+          PRE: 'Dates: types', DEC: 'Dates: decades', CEN: 'Dates: centuries',
           PLAC: 'Places', AREA: 'Places: areas',
           COUNTR: 'Places: countries', STATE: 'Places: states',
           DISTR: 'Places: districts', TOWN: 'Places: towns',
-          SOUR: 'Sources', SQUA: 'Sources quality', NOTE: 'Note',
+          SOUR: 'Sources', SGID: 'Sources IDs', SQUA: 'Sources quality', NOTE: 'Note',
           BURI: 'Burial', BAPM: 'Baptism',
           IMMI: 'Immigration', NATU : 'Naturalisation', ADOP: 'Adoption',
           CENS: 'Cencus', _MILT: 'Military',
@@ -901,12 +914,12 @@ function translateTagKey (tag) {
         },
         tagsprefixed: {
           BIRT: 'birth', DEAT: 'death',
-          DAY: 'date: day', MON: 'date: month', YEAR: 'date: year', PRE: 'date: type',
-          DEC: 'date: decade', CEN: 'date: century',
+          DATE: 'date', DAY: 'date: day', MON: 'date: month', YEAR: 'date: year',
+          PRE: 'date: type', DEC: 'date: decade', CEN: 'date: century',
           PLAC: 'place', AREA: 'place: area',
           COUNTR: 'place: country', STATE: 'place: state',
           DISTR: 'place: district', TOWN: 'place: town',
-          SOUR: 'sources', SQUA: 'sources quality',
+          SOUR: 'sources', SGID: 'sources ID', SQUA: 'sources quality',
         }
       },
       noprefix = trans.noprefix.indexOf(tag) !== -1,

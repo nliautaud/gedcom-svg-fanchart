@@ -15,73 +15,11 @@ Create a SVG genealogical fan chart from a GEDCOM file.
 
 Drop a GEDCOM file onto the page.
 
-## Saving & printing
-
-You can print the chart (to a real printer, to PDF...) using the *print* option of your modern web browser.
-
-You can save the page with its content by using the *File > Save web page as...* option of your web browser, usually with the shortcut ``Cmd+S``. The saved page will be a working version of the software and will contain the given GEDCOM data.
-
-The original file is accessing libraries listed below trough internet. If you need a local version, you can simply save it *without* dropping a GEDCOM file. The saved file, accompanied with its data folder, will be a clean, local version of the software. Note that the data folder name is browser-specific.
-
 ## Dynamic text templates
 
-The chart title and individual labels use text templates, where keywords in uppercase are dynamicaly replaced by corresponding values.
+The chart title and individual labels use text templates, where keywords in uppercase are dynamicaly replaced by corresponding values. See [Data keywords](#data-keywords).
 
 The chart is automatically updated when the *individuals* text field is out of focus, and drawn in the best way possible according to the texts contents and the aspect settings.
-
-Any GEDCOM tag is replaced by its corresponding data field, for example :
-
-```
-SEX         M
-OCCU        Astronaut
-...         ...
-```
-
-The following keywords are replaced too (and each one started with `B` for birth exists with `D` for death) :
-
-```
-LAST        Doe
-SURN        John Joseph-Alexander (complete surnames)
-SURS        John / Joseph / Alexander (individual surnames)
-GENS        8 (number of generations)
-```
-
-The following keywords can be prefixed by `B` and `D` for birth and death data (ex. birth place, death sources, etc.) or not prefixed for every data (ex. all countries or sources for the individual) :
-
-```
-YEAR       1936
-MON        6
-DAY        24
-PRE        abt.
-DEC        1930
-CEN        1900
-PLAC       Lorentz Crater, Northwest limb, Bright side, Moon
-CNTR       Moon
-STAT       Bright side
-DSTR       Northwest limb
-TOWN       Lorentz Crater
-AREA       Lorentz Crater (smallest known place)
-SOUR       NASA Bigest book, p14
-SQUA       7 (sources quality)
-```
-
-Each event tag can be prefixed by `AG` to get the age at the event date (if there is one) :
-
-```
-AGDEAT		75 (age at death)
-AGIMMI		28 (age at immigration)
-...
-```
-
-Values can be truncated by using numbers and dots :
-
-```
-SURN        John Alexander
-SURN1       John
-SURN.1      John A.
-SURN..1     John...
-SURN...1    J...
-```
 
 ## Navigation
 
@@ -103,7 +41,7 @@ The *padding* add space around labels, and the *generation spacing* add some spa
 
 ## Colors
 
-The chart can be dynamically colored according to each data, by using the *color palette* drop-down. Gradients are generated for numerical values (ex. dates, sources qualities...), and distinct colors for others (ex. names, places...).
+The chart can be dynamically colored according to each data, corresponding to the [data keywords](#data-keywords), by using the *color palette* drop-down. Gradients are generated for numerical values (ex. dates, sources qualities...), and distinct colors for others (ex. names, places...).
 
 The palette selection drop-down is also as a fuzzy-search filter.
 
@@ -116,6 +54,65 @@ By disabling the *global coloring* option, color palettes are specifically gener
 
 **Legend**  
 The chart legend is a list of the colors and their corresponding values, sorted by occurences. The maximum *legend number* can be changed in the settings. The legend title and labels are directly editables, and will retain their new value accross charts.
+
+## Data keywords
+
+Any GEDCOM tag is associated to its data field.
+
+```
+SEX         M
+OCCU        Astronaut
+...         ...
+```
+
+Custom keywords :
+
+```
+LAST        Doe
+SURN        John Joseph-Alexander (complete surnames)
+SURS        John / Joseph / Alexander (individual surnames)
+GID         @00157@
+GENS        8 (number of generations, used in title)
+```
+
+Each one of the following can be prefixed by `B` and `D` for birth and death data (ex. birth place, death sources, etc.). Not prefixed, they'll return every value known for the individual (ex. several countries, multiple sources, etc.) :
+
+```
+DATE       ABT 24 JUN 1936
+YEAR       1936
+MON        6
+DAY        24
+PRE        abt.
+DEC        1930
+CEN        1900
+PLAC       Lorentz Crater, Northwest limb, Bright side, Moon
+CNTR       Moon
+STAT       Bright side
+DSTR       Northwest limb
+TOWN       Lorentz Crater
+AREA       Lorentz Crater (smallest known place)
+SOUR       NASA Bigest book
+SGID       @00037@
+SQUA       7 (sources quality)
+```
+
+Each event tag can be prefixed by `AG` to get the age at the event date (if there is one) :
+
+```
+AGDEAT		75 (age at death)
+AGIMMI		28 (age at immigration)
+...
+```
+
+Values can be truncated by using numbers and dots :
+
+```
+SURN        John Alexander
+SURN1       John
+SURN.1      John A.
+SURN..1     John...
+SURN...1    J...
+```
 
 ## Editing
 
@@ -135,6 +132,14 @@ The dynamic coloring for example is done by attributing a distinct fill color to
 .show_SURN .SURN_paul path {fill: green}
 .show_OCCU .OCCU_astronaut path {fill: skyblue}
 ```
+
+## Saving & printing
+
+You can print the chart (to a real printer, to PDF...) using the *print* option of your modern web browser.
+
+You can save the page with its content by using the *File > Save web page as...* option of your web browser, usually with the shortcut ``Cmd+S``. The saved page will be a working version of the software and will contain the given GEDCOM data.
+
+The original file is accessing libraries listed below trough internet. If you need a local version, you can simply save it *without* dropping a GEDCOM file. The saved file, accompanied with its data folder, will be a clean, local version of the software. Note that the data folder name is browser-specific.
 
 ## External libraries
 
