@@ -408,12 +408,17 @@ function parseFileContent (e) {
   console.log(data);
 }
 
+originChoices = false;
+
 function registerIndivs () {
   var opt = [];
   data.indi.forEach( function(indi, i) {
-    opt.push({value:''+i, label:indi.LAST+' '+indi.SURN, id:i});
+    opt.push({value:i, label:indi.LAST+' '+indi.SURN});
   });
-  var choices = new Choices(settings.origin, {
+
+  if(originChoices) originChoices.destroy();
+
+  originChoices = new Choices(settings.origin, {
     choices: opt,
     shouldSort: false,
     itemSelectText: ''
@@ -693,7 +698,8 @@ function getParents (indiv)
   return parents;
 }
 
-function parseIndividual (indiv) {
+function parseIndividual (indiv, id) {
+  indiv.id = id;
   indiv.tags = [];
   indiv.classes = [];
   indiv.GID = indiv.pointer;
@@ -1119,6 +1125,10 @@ function drawChart (individuals, options) {
   var onSliceClick = function (e) {
     console.log(e.currentTarget.indiv);
   }
+  var onSliceDblClick = function (e) {
+    originChoices.setValueByChoice(e.currentTarget.indiv.id);
+    switchOrigin();
+  }
 
   if(fan !== null)
     fan.remove();
@@ -1145,7 +1155,7 @@ function drawChart (individuals, options) {
     {
       id++;
       var indiv = individuals[id]
-      if(gen > 6 && indiv === null) continue;
+      if(gen > 6 && !indiv) continue;
 
       var startAngle = arcAngle * sliceID + options.rotation;
       var middleAngle = startAngle + arcAngle * 0.5;
@@ -1160,7 +1170,7 @@ function drawChart (individuals, options) {
       slice.addClass('slice GEN_'+gen);
       slice.path(slicePathDef(coord));
 
-      if(indiv === null) {
+      if(!indiv) {
         slice.addClass('empty-slice');
         continue;
       }
@@ -1169,6 +1179,7 @@ function drawChart (individuals, options) {
 
       slice.node.indiv = indiv;
       slice.node.addEventListener('click', onSliceClick);
+      slice.node.addEventListener('dblclick', onSliceDblClick);
 
       // texts
 

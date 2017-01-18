@@ -23,7 +23,7 @@ The chart is automatically updated when the *individuals* text field is out of f
 
 ## Navigation
 
-The *origin* is the individual at the center of the chart. Write names to fuzzy-search in the list.
+The *origin* is the individual at the center of the chart. Write names to fuzzy-search in the list. You can also double-click on the chart.
 
 By checking *auto resize*, the chart will be fit and centered into the page when updated. You may want to uncheck it to maintain a specific zoom and position.
 
