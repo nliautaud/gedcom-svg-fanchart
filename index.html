@@ -545,7 +545,7 @@ function paletteStyle (tag, colors) {
   } else style.innerText = '';
 
   tag.items.forEach( function(item, i) {
-    var color = 'rgba('+colors[i]._rgb.join(',')+')';
+    var color = 'rgba('+colors[i]._rgb.map(Math.round).join(',')+')';
     // slice color
     styleContent += '.show_'+tag.name+' .'+item.cls+' path{fill:'+color+'}';
     // label square color
