@@ -1225,7 +1225,18 @@ function drawChart (individuals, options) {
 </script>
 
 <script>
-function saveSVG () {
+function saveChart () {
+  var html = document.children[0].outerHTML;
+  var el = document.createElement('a');
+  el.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  el.setAttribute('download', 'fanchart.html');
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  el.click();
+  document.body.removeChild(el);
+}
+
+function exportSVG () {
   var markup = getSVG();
   var doc = new DOMParser().parseFromString(markup, "text/xml");
   var svg = doc.children[0];
@@ -1263,12 +1274,11 @@ function appendStyles(doc, defs) {
   }
 }
 
-
 function saveFile (svg) {
   var markup = svg.outerHTML.replaceAll(' xmlns=""', '');
   const blob = new Blob([markup]);
   const element = document.createElement("a");
-  element.download = "download.svg";
+  element.download = "fanchart.svg";
   element.href = window.URL.createObjectURL(blob);
   element.click();
   element.remove();
@@ -1318,9 +1328,11 @@ OCCU..2</textarea></label>
     </div>
   </fieldset>
   <fieldset>
-    <legend>Save SVG</legend>
+    <legend>Save</legend>
     <div class="fieldset_content">
-      <input id="download" type="button" value="Save SVG" onClick="saveSVG()">
+      <input id="download" type="button" value="Save" onClick="saveChart()">
+      <input id="download" type="button" value="Export SVG" onClick="exportSVG()">
+      <input id="download" type="button" value="Print / Export PDF" onClick="window.print();return false;">
     </div>
   </fieldset>
 </aside>
