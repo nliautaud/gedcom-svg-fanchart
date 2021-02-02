@@ -150,11 +150,13 @@ The dynamic coloring for example is done by attributing a distinct fill color to
 
 ## Saving & printing
 
-You can print the chart (to a real printer, to PDF...) using the *print* option of your modern web browser.
+The `Save` button will download a working version of the software in a single `.html` file that include the GEDCOM data.
 
-You can save the page with its content by using the *File > Save web page as...* option of your web browser, usually with the shortcut ``Cmd+S``. The saved page will be a working version of the software and will contain the given GEDCOM data.
+Print / export the document to PDF by using `Print / Export PDF` or the shortcut `Cmd + P`. You'll be able to customize the document (portrait or landscape, document size...) trough the *Print* menu of your web browser.
 
-The original file is accessing libraries listed below trough internet. If you need a local version, you can simply save it *without* dropping a GEDCOM file. The saved file, accompanied with its data folder, will be a clean, local version of the software. Note that the data folder name is browser-specific.
+Export the raw chart (without the legends or title) to SVG by using `Export SVG`.
+
+> Note that the original software is remotely querying some external libraries. By using *Save page as* of your browser (or `Cmd + S`), you may save a local version with libraries stored in a data folder next to the file (the data folder name is browser-specific).
 
 ## External libraries
 
