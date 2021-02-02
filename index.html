@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <meta charset='utf-8'>
-<script src='https://wzrd.in/standalone/parse-gedcom@latest'></script>
-<script src='https://cdn.rawgit.com/jackmoore/autosize/master/dist/autosize.min.js'></script>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js'></script>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/snap.svg.zpd/0.0.11/snap.svg.zpd.js'></script>
-<script src='https://cdn.rawgit.com/jshjohnson/Choices/2280371b/assets/scripts/dist/choices.min.js'></script>
-<link rel='stylesheet' href='https://cdn.rawgit.com/jshjohnson/Choices/2280371b/assets/styles/css/choices.min.css'>
+<script src="https://wzrd.in/standalone/parse-gedcom@latest"></script>
+<script src="https://cdn.rawgit.com/jackmoore/autosize/master/dist/autosize.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg/0.4.1/snap.svg-min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/snap.svg.zpd/0.0.11/snap.svg.zpd.js"></script>
+<script src="https://cdn.rawgit.com/jshjohnson/Choices/2280371b/assets/scripts/dist/choices.min.js"></script>
+<link rel="stylesheet" href="https://cdn.rawgit.com/jshjohnson/Choices/2280371b/assets/styles/css/choices.min.css">
 <style>
   * {
     box-sizing: border-box;
@@ -251,6 +251,13 @@ var data = {},
     chart, zpd;
 
 
+// clear content on first load
+document.querySelector('#chart').innerHTML = '<g id="viewport"></g>';
+chartLegend.innerHTML = '';
+document.querySelector('label[for=origin] + .choices').outerHTML = '<select name="origin" id="origin"></select>';
+document.querySelector('label[for=palette] + .choices').outerHTML = '<select name="palette" id="palette"></select>';
+
+
 
 /**
  * SETTINGS
@@ -350,7 +357,9 @@ function setDefault (obj, def) {
  * MAIN
  */
 
-
+originChoices = false;
+palettesChoices = false;
+highlightsChoices = false;
 
 var dataStr = document.getElementById('dataStr');
 retrieveContent();
@@ -373,6 +382,13 @@ window.addEventListener('drop', function(e) {
 function retrieveContent () {
   if(!dataStr.innerText.length) return;
   data = JSON.parse(dataStr.innerText);
+  registerIndivs();
+  createPalettes();
+  registerOrigin();
+  updateTitle();
+  updateIndivTexts();
+  updateAncestors();
+  updateChart();
 }
 
 function parseFileContent (e) {
@@ -407,8 +423,6 @@ function parseFileContent (e) {
 
   console.log(data);
 }
-
-originChoices = false;
 
 function registerIndivs () {
   var opt = [];
@@ -484,9 +498,6 @@ var blob = new Blob([
     ], { type: "text/javascript" });
 var palette = new Worker(window.URL.createObjectURL(blob));
 palette.addEventListener('message', addPalette, false);
-
-palettesChoices = false;
-highlightsChoices = false;
 
 function createPalettes () {
 
