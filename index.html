@@ -1223,6 +1223,68 @@ function drawChart (individuals, options) {
 };//]]>
 
 </script>
+
+<script>
+function saveChart () {
+  var html = document.children[0].outerHTML;
+  var el = document.createElement('a');
+  el.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  el.setAttribute('download', 'fanchart.html');
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  el.click();
+  document.body.removeChild(el);
+}
+
+function exportSVG () {
+  var markup = getSVG();
+  var doc = new DOMParser().parseFromString(markup, "text/xml");
+  var svg = doc.children[0];
+  var defs = svg.children[0].children[2];
+
+  appendStyles(doc, defs);
+
+  saveFile(svg);
+}
+
+function getSVG() {
+  var svg = document.getElementById("chart");
+  svg.setAttribute('version', '1.1');
+  svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+
+  var cls = document.getElementById("main").getAttribute('class');
+  if (cls) {
+    svg.setAttribute('class', cls);
+  }
+
+  return svg.outerHTML;
+}
+
+function appendStyles(doc, defs) {
+  var styles = document.getElementsByTagName("style");
+  for (var index = 0; index < styles.length; index++) {
+    var text = styles[index].innerHTML;
+
+    const style = doc.createElement("style");
+    style.setAttribute('type', 'text/css');
+    var cdata = doc.createCDATASection(text);
+    style.appendChild(cdata);
+    defs.appendChild(style);
+  }
+}
+
+function saveFile (svg) {
+  var markup = svg.outerHTML.replaceAll(' xmlns=""', '');
+  const blob = new Blob([markup]);
+  const element = document.createElement("a");
+  element.download = "fanchart.svg";
+  element.href = window.URL.createObjectURL(blob);
+  element.click();
+  element.remove();
+}
+</script>
+
 <body>
 <div class="infos">Drop a GEDCOM file</div>
 <aside class="controls">
@@ -1263,6 +1325,14 @@ OCCU..2</textarea></label>
       <label>legend number<input type="number" id="labelNbr" min="0" value="10"></label>
       <input type="checkbox" name="globCols" id="globCols" checked>
       <label for="globCols"><span class="check"></span>global coloring</label>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Save</legend>
+    <div class="fieldset_content">
+      <input id="download" type="button" value="Save" onClick="saveChart()">
+      <input id="download" type="button" value="Export SVG" onClick="exportSVG()">
+      <input id="download" type="button" value="Print / Export PDF" onClick="window.print();return false;">
     </div>
   </fieldset>
 </aside>
