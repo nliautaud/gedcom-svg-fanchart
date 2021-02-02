@@ -254,8 +254,10 @@ var data = {},
 // clear content on first load
 document.querySelector('#chart').innerHTML = '<g id="viewport"></g>';
 chartLegend.innerHTML = '';
-document.querySelector('label[for=origin] + .choices').outerHTML = '<select name="origin" id="origin"></select>';
-document.querySelector('label[for=palette] + .choices').outerHTML = '<select name="palette" id="palette"></select>';
+let populatedOrigin = document.querySelector('label[for=origin] + .choices');
+if(populatedOrigin) populatedOrigin.outerHTML = '<select name="origin" id="origin"></select>';
+let populatedPalette = document.querySelector('label[for=palette] + .choices');
+if(populatedPalette) populatedPalette.outerHTML = '<select name="palette" id="palette"></select>';
 
 
 
