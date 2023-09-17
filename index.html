@@ -976,6 +976,15 @@ function cssnamify(str) {
   return '_' + str;
 }
 
+function matchDate(str) {
+  // this regex can match formats like 'dd/mm/yyy' or 'dd-mm-yyyy'
+  var dateReg = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
+  var dateArray = str.match(dateReg);
+  if (dateArray) {
+    return new Date(dateArray[3], dateArray[2] - 1, dateArray[1]);
+  }
+}
+
 function parseDate(inp) {
   var date, str, prefix = '';
   // remove ranges
@@ -991,6 +1000,10 @@ function parseDate(inp) {
     str = str[2];
   } else str = str[0];
   date = new Date(str);
+  if (!(date instanceof Date) || isNaN(date)) {
+        var parseddate = matchDate(str);
+        if (parseddate) date = parseddate;
+  }
   date.prefix = prefix;
   return date;
 }
